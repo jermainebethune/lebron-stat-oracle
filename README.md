@@ -28,9 +28,11 @@ Every number a user sees came out of the database in between. The model cannot i
 statistic because it is never asked to recall one.
 
 ```
-question → Worker → Workers AI (writes SQL) → guard (validates) → D1 (runs it)
+question → Worker → authorize → Workers AI (writes SQL) → guard → D1 (runs it)
+                    (Turnstile                                      ↓
+                     or API key)                                  real rows
                                                                     ↓
-        answer ← Workers AI (describes rows) ←──────────────── real rows
+        answer ← Workers AI (describes rows) ←──────────────────────┘
 ```
 
 ## Running it
@@ -61,11 +63,42 @@ there is no secret in production.
 | File | Purpose |
 |---|---|
 | `src/index.js` | Request flow and error handling |
+| `src/access.js` | Who may spend a Neuron — Turnstile or API key |
 | `src/guard.js` | SQL validation — the security boundary |
 | `src/prompts.js` | The two prompts and the schema shown to the model |
 | `src/ui.js` | Single-page frontend |
 | `extract.mjs` | Regenerates `seed.sql` from the balldontlie API |
 | `test/guard.test.js` | 15 tests against the guard |
+
+## Who can spend a Neuron
+
+`/api/ask` was originally open to anyone who knew the URL. At ~35.5 Neurons per question
+against a 10,000/day allowance, a trivial loop could exhaust the daily budget in minutes and
+take the app down until 00:00 UTC.
+
+Two ways in now, checked **before any inference runs**:
+
+- **A Turnstile token** — what the page sends. Cloudflare's CAPTCHA alternative; usually
+  invisible, occasionally a one-click checkbox for traffic that looks automated. Tokens are
+  single-use, so the widget is reset after every question.
+- **An `x-api-key` header** — so the thing stays drivable programmatically, for testing and
+  for anyone handed a key.
+
+Both secrets live as Worker secrets (`wrangler secret put`), never in the repo. The check
+fails closed: if a secret isn't configured, that path is simply unavailable rather than
+silently open.
+
+```bash
+curl -X POST https://lebron-oracle.jermaine-e7a.workers.dev/api/ask \
+  -H 'content-type: application/json' \
+  -H 'x-api-key: <key>' \
+  -d '{"question":"What was his career high?"}'
+```
+
+Worth naming the mistake this fixed: the SQL guard was built carefully against an
+interesting threat — a model writing dangerous queries — while an ordinary one went
+unconsidered for the whole build. Anyone could just call it. Hardening the interesting
+attack surface is not the same as hardening the whole thing.
 
 ## The guard
 

@@ -1,5 +1,6 @@
 import { guard, SqlRejected } from './guard.js';
 import { sqlPrompt, prosePrompt } from './prompts.js';
+import { authorize } from './access.js';
 import { page } from './ui.js';
 
 // Two jobs, two models, chosen for what each job actually needs.
@@ -153,18 +154,26 @@ export default {
         return json({ error: 'Send a POST with {"question": "..."}' }, 405);
       }
 
-      let question;
+      let payload;
       try {
-        ({ question } = await request.json());
+        payload = await request.json();
       } catch {
         return json({ error: 'Body must be JSON.' }, 400);
       }
+      const question = payload?.question;
 
       if (typeof question !== 'string' || !question.trim()) {
         return json({ error: 'Ask a question.' }, 400);
       }
       if (question.length > 300) {
         return json({ error: 'Keep the question under 300 characters.' }, 400);
+      }
+
+      // Authorize BEFORE any inference. Everything above this line is free to
+      // evaluate; everything below it spends Neurons.
+      const allowed = await authorize(request, payload, env);
+      if (!allowed.ok) {
+        return json({ error: allowed.reason }, 401);
       }
 
       try {

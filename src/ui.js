@@ -10,6 +10,7 @@ export const page = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Stat Oracle</title>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileReady" async defer></script>
 <style>
   :root {
     --ground: #FBFAF8; --panel: #FFF; --ink: #14161A; --soft: #52565E;
@@ -120,15 +121,42 @@ export const page = `<!doctype html>
     <button class="chip">How many games did he play in Miami?</button>
   </div>
 
+  <div id="turnstile-anchor"></div>
+
   <div id="out" hidden></div>
 
   <footer>
-    Workers &middot; Workers AI &middot; D1 &nbsp;|&nbsp; every generated query is validated before it runs
+    Workers &middot; Workers AI &middot; D1 &middot; Turnstile &nbsp;|&nbsp; every generated query is validated before it runs
   </footer>
 
 </div>
 
 <script>
+// Turnstile. Rendered invisibly and refreshed after every ask, because a token
+// is single-use — reusing one gets the next request rejected.
+const SITEKEY = '0x4AAAAAAD4sTljW5JRb7KjZ';
+let widgetId = null;
+let tokenReady = false;
+
+window.onTurnstileReady = function () {
+  widgetId = turnstile.render('#turnstile-anchor', {
+    sitekey: SITEKEY,
+    size: 'flexible',
+    callback: function () { tokenReady = true; },
+    'error-callback': function () { tokenReady = false; }
+  });
+};
+
+function currentToken() {
+  try { return widgetId !== null ? turnstile.getResponse(widgetId) : null; }
+  catch (e) { return null; }
+}
+
+function resetToken() {
+  try { if (widgetId !== null) { turnstile.reset(widgetId); tokenReady = false; } }
+  catch (e) {}
+}
+
 const form = document.getElementById('form');
 const input = document.getElementById('q');
 const go = document.getElementById('go');
@@ -155,6 +183,17 @@ function table(rows) {
 }
 
 async function ask(question) {
+  // Don't spend a request we know will be refused. If the challenge hasn't
+  // resolved yet, say so plainly instead of surfacing a 401 the user can't act on.
+  const token = currentToken();
+  if (!token) {
+    out.hidden = false;
+    out.innerHTML = '<div class="card error"><p class="label">One moment</p>' +
+      '<p class="text">Complete the verification below, then ask again. ' +
+      'It usually clears on its own within a second or two.</p></div>';
+    return;
+  }
+
   go.disabled = true;
   out.hidden = false;
   out.innerHTML = '<div class="card"><p class="empty">Writing a query&hellip;</p></div>';
@@ -163,9 +202,12 @@ async function ask(question) {
     const res = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ question })
+      body: JSON.stringify({ question, turnstileToken: token })
     });
     const data = await res.json();
+
+    // Tokens are single-use. Get a fresh one for the next question.
+    resetToken();
 
     if (!res.ok) {
       out.innerHTML = '<div class="card error"><p class="label">' +
