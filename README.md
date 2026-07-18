@@ -69,6 +69,7 @@ there is no secret in production.
 | `src/ui.js` | Single-page frontend — design, chalk-burst canvas, Turnstile wiring |
 | `public/img/` | Photographs, served by the static assets binding |
 | `extract.mjs` | Regenerates `seed.sql` from the balldontlie API |
+| `deploy.sh` | Deploys, then emails a summary — only if the deploy succeeded |
 | `test/guard.test.js` | 15 tests against the guard |
 
 ## Who can spend a Neuron
@@ -169,6 +170,26 @@ Fixed by dropping the column and catching D1 errors, so a query against absent d
 19 exactly-40-point games. Caught by checking a boundary case rather than trusting an answer
 that looked right.
 
+**7. A partial table answered questions it couldn't actually answer.** `games` began as 238
+rows curated by *scoring* thresholds. Asked "what game did he have the most blocks?", the app
+correctly refused — blocks weren't stored at all. But simply adding the column would have
+produced something worse than a refusal: his three 5-block games were **21, 17 and 15-point
+nights**, none of which met the scoring criteria, so the query would have returned a 4-block
+game and presented it as a career high. Every number real, the answer wrong.
+
+Fixed by loading **all 1,912 games** and the full stat line. ~1,900 rows is nothing for D1,
+and the curation was buying tidiness at the cost of correctness.
+
+> A sample can only answer questions about the axis you sampled on.
+
+**8. `LIMIT 1` hides ties.** "Highest blocks" returned one game when three share the record —
+and no prompt rule could fix it, because the SQL truncated the tie before the model ever saw
+it. Superlatives now use `WHERE x = (SELECT MAX(x) ...)` so ties surface as ties.
+
+**9. "Minutes in his career high game" ordered by minutes.** It returned his longest game (54
+minutes) rather than the minutes in his 61-point game (41). Fixed by pinning "career high" to
+points in the prompt — *order by the stat named, not the stat asked for*.
+
 ## The front end
 
 Named for the pre-game ritual, and the design follows from it: arena-dark ground, chalk-white
@@ -188,6 +209,23 @@ Two things worth knowing if you edit it:
 - **Scroll to the first result slab, not the container** — the container carries large vertical
   padding, so targeting it lands the viewport in a blank gap.
 
+## Deploy notifications
+
+`npm run deploy` deploys and then emails a summary. Cloudflare has **no "Worker deployed"
+alert type** — the only Workers alert is log-based observability, which fires on errors, not
+deployments. Workers Builds would provide one, but only if you deploy through Cloudflare's CI
+rather than from a laptop. So `deploy.sh` sends the mail itself, via the `hey` CLI.
+
+The email carries the commit, version ID, and a **live health check of the thing just
+shipped** — so it reports reality rather than merely that `wrangler` exited 0.
+
+Two things this got wrong first time, both worth knowing:
+
+- **The first version emailed on a failed deploy.** It piped `wrangler` into `tee` and chained
+  the notifier with `&&` — but a pipeline's exit status is the *last* command's, so `tee`
+  succeeding masked `wrangler` failing. Now the status is captured with `PIPESTATUS`.
+- It only fires for `npm run deploy`. A bare `wrangler deploy` skips it.
+
 ## Photographs — attribution still needed
 
 The two photos in `public/img/` are from Wikimedia Commons (filenames matched the Commons
@@ -203,9 +241,11 @@ the `#photo-credit` line in `src/ui.js`.
 
 ## Limits worth stating
 
-- **`games` is a curated sample**, not every game — selected by objective thresholds (40+
-  points, playoff 35+, triple-doubles). Counting questions route to `seasons.games`, which
-  holds true totals.
+- **`games` holds every game** — 1,912 rows, regular season and playoffs, with minutes,
+  points, rebounds, assists, steals, blocks and turnovers. It was once a 238-game sample
+  curated by scoring thresholds; see bug 7 below for why that had to change.
+- **`seasons.games` is the regular-season total** (1,565). `games` includes the 293 playoff
+  appearances, so the two counts differ on purpose.
 - **No awards, salary, or biographical data.** Those questions are refused rather than
   guessed. Deliberately left absent instead of hand-entered.
 - **The guard has never fired in production.** Injection attempts are refused by the model at

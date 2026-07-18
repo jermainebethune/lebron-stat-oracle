@@ -29,6 +29,12 @@ CREATE TABLE seasons (
   fg_pct      REAL
 );
 
+-- EVERY game, regular season and playoffs — not a sample.
+--
+-- This started as a curated 238-game subset chosen by scoring thresholds. That
+-- was a mistake: "his best blocking game" would have searched only games picked
+-- for their scoring, returned a local maximum, and presented it as a career
+-- high. A partial table answers questions it cannot actually answer.
 CREATE TABLE games (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   date        TEXT NOT NULL,      -- ISO 'YYYY-MM-DD', sorts correctly as text
@@ -36,11 +42,15 @@ CREATE TABLE games (
   team        TEXT NOT NULL,
   opponent    TEXT NOT NULL,      -- 3-letter code
   home        INTEGER NOT NULL,   -- 1 = home, 0 = away
+  minutes     INTEGER,            -- whole minutes played
   points      INTEGER NOT NULL,
   rebounds    INTEGER NOT NULL,
   assists     INTEGER NOT NULL,
+  steals      INTEGER,
+  blocks      INTEGER,
+  turnovers   INTEGER,
   playoff     INTEGER NOT NULL DEFAULT 0,
-  note        TEXT,               -- 'Game 6, ECF' — gives the model something to describe
+  note        TEXT,               -- 'Playoffs, Triple-double' — something to describe
   FOREIGN KEY (season) REFERENCES seasons(season)
 );
 
@@ -48,3 +58,5 @@ CREATE INDEX idx_games_points   ON games(points);
 CREATE INDEX idx_games_opponent ON games(opponent);
 CREATE INDEX idx_games_date     ON games(date);
 CREATE INDEX idx_games_playoff  ON games(playoff);
+CREATE INDEX idx_games_blocks   ON games(blocks);
+CREATE INDEX idx_games_steals   ON games(steals);

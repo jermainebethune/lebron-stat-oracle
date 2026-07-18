@@ -76,7 +76,8 @@ async function ask(question, env) {
 
   if (/^UNANSWERABLE/i.test(raw)) {
     return {
-      answer: "That can't be answered from this database — it only holds per-game lines and season averages.",
+      answer:
+        "That can't be answered from this database. It holds every game he has played — minutes, points, rebounds, assists, steals, blocks, turnovers, opponent and date — plus season averages. No awards, salary, draft or biographical data.",
       sql: null,
       rows: [],
       provenance: meta,
@@ -101,7 +102,7 @@ async function ask(question, env) {
     console.error('query failed', sql, dbErr);
     return {
       answer:
-        "That can't be answered from this database — it holds per-game lines and season averages, with no awards, salary or biographical data.",
+        "That can't be answered from this database. It holds every game he has played plus season averages — no awards, salary, draft or biographical data.",
       sql,
       rows: [],
       provenance: meta,

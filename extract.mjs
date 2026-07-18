@@ -9,12 +9,13 @@
  *
  * Two tables come out:
  *   seasons — one row per season, from /season_averages (authoritative totals)
- *   games   — a CURATED SAMPLE of notable games, filtered from /stats
+ *   games   — EVERY game log, regular season and playoffs
  *
- * The games table is deliberately not every game. The schema and the model
- * prompt both say so, and counting questions are routed to seasons.games
- * instead. Loading 1,500 rows would bloat the demo without answering anything
- * the sample can't.
+ * games was once a curated subset chosen by scoring thresholds. That quietly
+ * broke any question about a stat the curation didn't select on: "his best
+ * blocking game" searched only games picked for scoring and returned a local
+ * maximum as if it were a career high. ~1,950 rows is nothing for D1, and a
+ * complete table cannot mislead the way a partial one does.
  */
 
 import { readFileSync } from 'node:fs';
@@ -100,27 +101,18 @@ async function allGames() {
   return out;
 }
 
-/**
- * Pick the games worth keeping.
- *
- * Selection is by objective statistical threshold, not by reputation — every
- * included game earns its place from its own line, so the sample is defensible
- * and reproducible rather than a matter of taste.
- */
-function curate(stats) {
-  const notable = (s) => {
-    const tripleDouble = s.pts >= 10 && s.reb >= 10 && s.ast >= 10;
-    return (
-      s.pts >= 40 ||                              // big scoring nights
-      (s.game.postseason && s.pts >= 35) ||       // playoff explosions
-      (tripleDouble && s.game.postseason) ||      // playoff triple-doubles
-      (tripleDouble && s.pts >= 25)               // heavy regular-season TDs
-    );
-  };
-
+/** Keep every game that has a usable line, oldest first. */
+function usable(stats) {
   return stats
-    .filter((s) => s.pts != null && s.game?.date && notable(s))
+    .filter((s) => s.pts != null && s.game?.date)
     .sort((a, b) => a.game.date.localeCompare(b.game.date));
+}
+
+/** "38:01" -> 38. Null when the player did not appear. */
+function toMinutes(min) {
+  if (!min || typeof min !== 'string') return null;
+  const m = parseInt(min.split(':')[0], 10);
+  return Number.isFinite(m) ? m : null;
 }
 
 function toGameRow(s) {
@@ -142,9 +134,13 @@ function toGameRow(s) {
     team: TEAMS[myTeamId] ?? '???',
     opponent: TEAMS[opponentId] ?? '???',
     home: isHome ? 1 : 0,
+    minutes: toMinutes(s.min),
     points: s.pts,
     rebounds: s.reb,
     assists: s.ast,
+    steals: s.stl ?? null,
+    blocks: s.blk ?? null,
+    turnovers: s.turnover ?? null,
     playoff: g.postseason ? 1 : 0,
     note: notes.join(', ') || null,
   };
@@ -156,9 +152,9 @@ async function main() {
 
   const seasons = await seasonRows();
   const stats = await allGames();
-  const curated = curate(stats).map(toGameRow);
+  const rows = usable(stats).map(toGameRow);
 
-  console.error(`\n${seasons.length} seasons, ${stats.length} games played, ${curated.length} curated\n`);
+  console.error(`\n${seasons.length} seasons, ${stats.length} game logs, ${rows.length} written\n`);
 
   const teamFor = (year) => {
     const g = stats.find((s) => s.game.season === year);
@@ -185,13 +181,20 @@ async function main() {
   out.push(seasonVals.join(',\n') + ';');
   out.push('');
 
-  out.push('INSERT INTO games (date, season, team, opponent, home, points, rebounds, assists, playoff, note) VALUES');
-  const gameVals = curated.map((g) =>
-    `  ('${g.date}', '${g.season}', '${g.team}', '${g.opponent}', ${g.home}, ` +
-    `${g.points}, ${g.rebounds}, ${g.assists}, ${g.playoff}, ` +
-    `${g.note ? `'${esc(g.note)}'` : 'NULL'})`
-  );
-  out.push(gameVals.join(',\n') + ';');
+  const n = (v) => (v === null || v === undefined ? 'NULL' : v);
+  // Chunked INSERTs: SQLite caps compound-select terms, and one 1,950-row
+  // statement trips that limit.
+  for (let i = 0; i < rows.length; i += 400) {
+    const chunk = rows.slice(i, i + 400);
+    out.push('INSERT INTO games (date, season, team, opponent, home, minutes, points, rebounds, assists, steals, blocks, turnovers, playoff, note) VALUES');
+    out.push(chunk.map((g) =>
+      `  ('${g.date}', '${g.season}', '${g.team}', '${g.opponent}', ${g.home}, ` +
+      `${n(g.minutes)}, ${g.points}, ${g.rebounds}, ${g.assists}, ` +
+      `${n(g.steals)}, ${n(g.blocks)}, ${n(g.turnovers)}, ${g.playoff}, ` +
+      `${g.note ? `'${esc(g.note)}'` : 'NULL'})`
+    ).join(',\n') + ';');
+    out.push('');
+  }
   out.push('');
 
   const today = new Date().toISOString().slice(0, 10);

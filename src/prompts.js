@@ -4,10 +4,16 @@
  * The model is never asked what it knows about basketball. It is asked to
  * translate a question into SQL, and later to describe rows it was handed.
  * Every number the user sees comes from D1 in between.
+ *
+ * Note on how this model behaves: it follows SCHEMA COMMENTS far more reliably
+ * than rules in the system prompt. A fix that was ignored as a prompt rule
+ * worked immediately once moved into a comment on the column. When something
+ * isn't being respected, put it in the schema.
  */
 
 export const SCHEMA = `
--- USE THIS TABLE to count games played. seasons.games is the true total.
+-- Season averages. USE THIS TABLE to count games played; seasons.games is the
+-- authoritative regular-season total.
 CREATE TABLE seasons (
   season TEXT PRIMARY KEY,   -- '2012-13'
   team TEXT,                 -- 'CLE' | 'MIA' | 'LAL'
@@ -15,11 +21,8 @@ CREATE TABLE seasons (
   games INTEGER,             -- REGULAR SEASON games played that season. SUM(games) for a career or team total.
   ppg REAL, rpg REAL, apg REAL, fg_pct REAL
 );
--- NOTE: there is no awards/championships data. MVPs, rings and All-NBA
--- selections are NOT in this database — such questions are UNANSWERABLE.
 
--- A SAMPLE of notable games only, NOT every game he played.
--- NEVER use COUNT(*) on this table to answer "how many games" — it will undercount.
+-- EVERY game he has played, regular season and playoffs. Complete, not a sample.
 CREATE TABLE games (
   id INTEGER PRIMARY KEY,
   date TEXT,                 -- 'YYYY-MM-DD'
@@ -27,10 +30,16 @@ CREATE TABLE games (
   team TEXT,                 -- HIS OWN team that season: 'CLE' | 'MIA' | 'LAL'
   opponent TEXT,             -- the team he played AGAINST: 'BOS', 'GSW', 'SAS'
   home INTEGER,              -- 1 home, 0 away
+  minutes INTEGER,
   points INTEGER, rebounds INTEGER, assists INTEGER,
+  steals INTEGER, blocks INTEGER, turnovers INTEGER,
   playoff INTEGER,           -- 1 playoff, 0 regular season
-  note TEXT                  -- e.g. 'Game 6, ECF'
-);`.trim();
+  note TEXT                  -- e.g. 'Playoffs, Triple-double'
+);
+
+-- NOTE: there is no awards, salary, draft, or biographical data. MVPs, rings,
+-- All-NBA selections and contracts are NOT in this database — such questions
+-- are UNANSWERABLE.`.trim();
 
 export function sqlPrompt(question) {
   return [
@@ -48,12 +57,12 @@ Rules:
 - Team and opponent are 3-letter uppercase codes.
 - "against X" / "versus X" / "played X" always means opponent = 'X', never team = 'X'.
 - "40+", "40 or more", "at least 40" are INCLUSIVE: use >= 40, never > 40. Off-by-one here silently drops real games.
-- Select the columns needed to answer, not just one — include date, opponent and the relevant stat so the answer can be checked.
-- IMPORTANT: the games table holds only selected notable games, NOT every game played. Never use it to count how many games he played.
-- To count games played, use seasons.games — e.g. total games for a team is SELECT SUM(games) FROM seasons WHERE team = 'MIA'.
-- Use the games table only for questions about individual game performances.
 - A "triple-double" means points >= 10 AND rebounds >= 10 AND assists >= 10.
-- "Playoffs" or "postseason" means playoff = 1.
+- "Playoffs" or "postseason" means playoff = 1. Questions that don't mention the playoffs cover both.
+- For "most/best/highest X in a game", do NOT use LIMIT 1 — it hides ties and the answer would claim one game when several share the record. Use:
+  SELECT date, opponent, X FROM games WHERE X = (SELECT MAX(X) FROM games) ORDER BY date
+- "career high" on its own always means POINTS. "Minutes in his career high game" means the minutes of the highest-scoring game: SELECT date, opponent, minutes, points FROM games ORDER BY points DESC LIMIT 1 — order by the stat named, not by the stat asked for.
+- Select the columns needed to answer, not just one — include date, opponent and the relevant stat so the answer can be checked.
 - If the question cannot be answered from these tables, reply exactly: UNANSWERABLE`,
     },
     { role: 'user', content: question },
@@ -71,6 +80,7 @@ Absolute rules:
 - Never add statistics, dates, context, or commentary from your own knowledge.
 - The rows are never empty. Every row given to you is a real result — describe them all.
 - Never say there are no results, no matches, or no data.
+- If several rows tie for the top value, say so rather than picking one.
 - No preamble. No "Based on the data". Just the answer.`,
     },
     {

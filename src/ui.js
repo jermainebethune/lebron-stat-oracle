@@ -286,7 +286,7 @@ export const page = `<!doctype html>
   </div>
 
   <div class="intro">
-    <p class="kicker">22 seasons · 1,565 games · one database</p>
+    <p class="kicker">22 seasons · 1,912 games · every one of them</p>
     <h1>The Chalk<span class="toss">Toss</span></h1>
     <p class="lede">Ask anything about LeBron's career. The model writes a query &mdash; <b>every number comes back from the record</b>, not from the model's memory.</p>
 
