@@ -28,11 +28,15 @@ Every number a user sees came out of the database in between. The model cannot i
 statistic because it is never asked to recall one.
 
 ```
-question → Worker → authorize → Workers AI (writes SQL) → guard → D1 (runs it)
-                    (Turnstile                                      ↓
-                     or API key)                                  real rows
-                                                                    ↓
-        answer ← Workers AI (describes rows) ←──────────────────────┘
+question → Worker → authorize ──→ AI Gateway → Workers AI (writes SQL)
+                    (Turnstile        │                      ↓
+                     or API key)      │                    guard
+                                      │                      ↓
+                                   cache hit           D1 (runs it)
+                                   0 Neurons                 ↓
+                                      │                  real rows
+                                      ↓                      ↓
+        answer ←── AI Gateway → Workers AI (describes rows) ←┘
 ```
 
 ## Running it
