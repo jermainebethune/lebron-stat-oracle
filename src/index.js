@@ -1,4 +1,4 @@
-import { guard, SqlRejected } from './guard.js';
+import { guard, SqlRejected, MAX_LIMIT } from './guard.js';
 import { sqlPrompt, prosePrompt } from './prompts.js';
 import { authorize } from './access.js';
 import { page } from './ui.js';
@@ -125,19 +125,26 @@ async function ask(question, env) {
     };
   }
 
-  // 5. Rows -> prose. The model only ever sees a non-empty result set.
+  // 5. Did we hit the row ceiling? Then this is a PARTIAL answer, and saying so
+  //    is not optional. Found by the eval harness: "40+ games" has 108 results,
+  //    the guard's LIMIT 100 cut it to 100, and the answer read as complete.
+  //    A truncated result presented as whole is the same failure as a wrong
+  //    number — the user cannot tell it is incomplete.
+  const truncated = rows.length >= MAX_LIMIT;
+
+  // 6. Rows -> prose. The model only ever sees a non-empty result set.
   const written = await env.AI.run(PROSE_MODEL, {
-    messages: prosePrompt(question, sql, rows),
+    messages: prosePrompt(question, sql, rows, truncated),
     max_tokens: 200,
     temperature: 0,
   });
 
-  return {
-    answer: textOf(written).trim() || 'The query ran but produced no summary.',
-    sql,
-    rows,
-    provenance: meta,
-  };
+  let answer = textOf(written).trim() || 'The query ran but produced no summary.';
+  if (truncated) {
+    answer += ` (Showing the first ${MAX_LIMIT} results — there are more.)`;
+  }
+
+  return { answer, sql, rows, truncated, provenance: meta };
 }
 
 export default {

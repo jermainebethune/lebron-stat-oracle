@@ -10,7 +10,8 @@
     "schema": "wrangler d1 execute lebron-oracle --remote --file=./schema.sql",
     "seed": "wrangler d1 execute lebron-oracle --remote --file=./seed.sql",
     "test": "node --test test/",
-    "deploy:quiet": "wrangler deploy"
+    "deploy:quiet": "wrangler deploy",
+    "eval": "node eval/run.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.112.0"

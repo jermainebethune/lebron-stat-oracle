@@ -70,7 +70,61 @@ there is no secret in production.
 | `public/img/` | Photographs, served by the static assets binding |
 | `extract.mjs` | Regenerates `seed.sql` from the balldontlie API |
 | `deploy.sh` | Deploys, then emails a summary — only if the deploy succeeded |
-| `test/guard.test.js` | 15 tests against the guard |
+| `test/guard.test.js` | 15 unit tests against the guard |
+| `eval/cases.js` | The answer key — 20 questions with queries we trust |
+| `eval/run.mjs` | Runs the answer key against the live app |
+
+## Evaluating the SQL layer
+
+Every bug below was a SQL-generation error, and every one was found by hand, one at a time.
+That is not a strategy. `npm run eval` is the systematic version.
+
+Each case pairs a question in English with **a query we wrote ourselves and trust**. The
+runner executes both and compares the *results* — not the SQL text, because there are many
+correct ways to write the same query and string-matching would fail on harmless rewording
+while passing subtly wrong logic.
+
+```
+$ npm run eval
+
+  opponent-not-team         ✓ 9 rows
+  truncation-disclosed      ✓ capped at 100, disclosed
+  awards-refused            ✓ refused
+  ...
+  20/20 passed (100%)
+```
+
+Expected values are never hard-coded — they come from running the trusted query against the
+live database, so reloading the dataset moves the expectations with it and fixtures cannot go
+stale. Failures print both queries side by side.
+
+Every shipped bug is a case tagged `regression`, so none of them can come back silently.
+`npm run eval -- --regression` runs just those.
+
+**A full run is ~710 Neurons, about 7% of the daily free allowance** — roughly 14 runs a day.
+Run it when something changes, not on every save.
+
+### What it immediately paid for
+
+**It found bug 10 on its first run.** "40+ games" has 108 results; the guard's `LIMIT 100`
+truncated it to 100 and the app presented that as the complete answer. Nobody would have
+noticed. Results that hit the cap now say so.
+
+**It settled the model question with a number.** The SQL model is 94% of the running cost,
+and swapping it for the cheap one was previously a leap of faith. Measured:
+
+| SQL model | Neurons/call | Eval score |
+|---|---|---|
+| `qwen2.5-coder-32b` | 33.2 | **20/20 (100%)** |
+| `llama-3.2-3b` | 2.3 | 14/20 (70%) |
+
+The cheap model is 14× cheaper and fails six cases — including three refusals. It answered
+"how many championships?" with `SELECT COUNT(opponent) FROM games WHERE playoff = 1`, which
+returns a real number that is not remotely the answer. That is the MVP bug all over again.
+
+**14× cheaper is not worth 30% wrong.** But that is now a decision backed by a measurement
+rather than an instinct, and re-running the comparison after any prompt change takes one
+command.
 
 ## Who can spend a Neuron
 
@@ -189,6 +243,14 @@ it. Superlatives now use `WHERE x = (SELECT MAX(x) ...)` so ties surface as ties
 **9. "Minutes in his career high game" ordered by minutes.** It returned his longest game (54
 minutes) rather than the minutes in his 61-point game (41). Fixed by pinning "career high" to
 points in the prompt — *order by the stat named, not the stat asked for*.
+
+**10. The row cap silently truncated results.** Found by the eval harness on its first full
+run, which is the entire argument for having one. "40+ games" returns 108 rows; the guard
+injects `LIMIT 100`; the app returned 100 and described them as if that were all of them.
+Every number real, the answer incomplete, and no way for a reader to tell. Capped results now
+say so explicitly.
+
+> A truncated answer presented as complete is the same failure as a wrong number.
 
 ## The front end
 

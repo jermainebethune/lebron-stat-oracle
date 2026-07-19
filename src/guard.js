@@ -17,7 +17,9 @@
  * depth, not the only defence.
  */
 
-const MAX_LIMIT = 100;
+// Exported because the caller has to know whether a result hit the ceiling.
+// A silently truncated answer is indistinguishable from a complete one.
+export const MAX_LIMIT = 100;
 const MAX_LENGTH = 2000;
 
 // Anything that mutates, attaches, or reaches outside a plain read.

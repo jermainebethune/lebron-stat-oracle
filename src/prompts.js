@@ -69,7 +69,7 @@ Rules:
   ];
 }
 
-export function prosePrompt(question, sql, rows) {
+export function prosePrompt(question, sql, rows, truncated = false) {
   return [
     {
       role: 'system',
@@ -81,6 +81,7 @@ Absolute rules:
 - The rows are never empty. Every row given to you is a real result — describe them all.
 - Never say there are no results, no matches, or no data.
 - If several rows tie for the top value, say so rather than picking one.
+- If the rows are marked CAPPED, do not state a total count — the list is incomplete. Describe what is shown without implying it is all of them.
 - No preamble. No "Based on the data". Just the answer.`,
     },
     {
@@ -90,7 +91,7 @@ Absolute rules:
 Query that ran:
 ${sql}
 
-Rows returned (${rows.length}):
+Rows returned (${rows.length}${truncated ? ', CAPPED — there are more results than shown' : ''}):
 ${rows.length ? JSON.stringify(rows, null, 2) : '(none)'}`,
     },
   ];
