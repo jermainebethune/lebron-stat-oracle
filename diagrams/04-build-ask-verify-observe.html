@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Chalk Toss — Build vs Ask vs Verify vs Observe</title>
+<style>
+  :root {
+    --cream:   #FBFAEF;
+    --ink:     #1A1D23;
+    --soft:    #5C6470;
+    --faint:   #939BA6;
+
+    --green:   #17864F;  --green-tint: #E8F5EE;  --green-line: #A8D8BE;
+    --blue:    #1E5FD0;  --blue-tint:  #E9F0FD;  --blue-line:  #A9C4F2;
+    --purple:  #7A3FD4;  --purple-tint:#F0EAFC;  --purple-line:#C6ACF0;
+    --orange:  #D9700A;  --orange-tint:#FDF0E2;
+    --red:     #C42B21;  --red-tint:   #FCEAE8;
+    --teal:    #0F7B8A;  --teal-tint:  #E4F2F4;  --teal-line:  #A3D3DA;
+
+    --sans: "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 22px 26px 18px; width: 1480px;
+    background: var(--cream); color: var(--ink);
+    font-family: var(--sans);
+    zoom: 0.99;
+  }
+
+  /* ---------------- header ---------------- */
+  .head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .tick { width: 5px; height: 34px; background: var(--green); border-radius: 3px; }
+  .chip {
+    color: #fff; font-size: 30px; font-weight: 800; letter-spacing: -0.02em;
+    padding: 5px 20px; border-radius: 10px; line-height: 1.15;
+  }
+  .vs { font-size: 26px; font-weight: 800; color: var(--ink); }
+  .head .tail { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+
+  /* ---------------- columns ---------------- */
+  .cols { display: grid; grid-template-columns: 0.95fr 1.3fr 0.95fr 0.95fr; gap: 16px; align-items: start; }
+  .col {
+    border: 1.5px solid var(--cl); border-radius: 14px; background: var(--ct);
+    padding: 14px 14px 15px;
+  }
+  .col.g { --cl: var(--green-line);  --ct: var(--green-tint);  --c: var(--green); }
+  .col.b { --cl: var(--blue-line);   --ct: var(--blue-tint);   --c: var(--blue); }
+  .col.p { --cl: var(--purple-line); --ct: var(--purple-tint); --c: var(--purple); }
+  .col.t { --cl: var(--teal-line);   --ct: var(--teal-tint);   --c: var(--teal); }
+
+  .col > h2 {
+    text-align: center; font-size: 19px; font-weight: 800; margin: 0 0 3px;
+    letter-spacing: -0.015em; color: var(--ink);
+  }
+  .col > .when {
+    text-align: center; font-size: 11.5px; color: var(--c); font-weight: 700;
+    margin: 0 0 12px;
+  }
+
+  /* ---------------- nodes ---------------- */
+  .node { display: flex; flex-direction: column; align-items: center; }
+  .pill {
+    background: #fff; border: 1.5px solid var(--nl, var(--cl));
+    border-radius: 999px; padding: 3px 14px;
+    font-size: 12.5px; font-weight: 700; letter-spacing: -0.01em;
+    position: relative; z-index: 2; white-space: nowrap;
+  }
+  .card {
+    background: #fff; border: 1.5px solid var(--nl, var(--cl));
+    border-radius: 9px; margin-top: -11px; padding: 13px 12px 8px;
+    width: 100%; text-align: center;
+  }
+  .ico { font-size: 27px; line-height: 1.1; display: block; }
+  .cap { font-size: 10.5px; color: var(--soft); margin-top: 4px; }
+  .cap b { color: var(--ink); }
+
+  .n-orange { --nl: #EDBE8A; }
+  .n-red    { --nl: #EBA79F; }
+  .n-green  { --nl: var(--green-line); }
+
+  /* ---------------- arrows ---------------- */
+  .arr { display: flex; align-items: center; gap: 7px; padding: 2px 0; width: 100%; justify-content: center; }
+  .arr .ln {
+    width: 0; height: 13px; border-left: 2px dashed #9AA3AE;
+  }
+  .arr .note {
+    font-size: 9.5px; font-weight: 700; color: var(--soft); line-height: 1.25;
+    max-width: 128px; text-align: left;
+  }
+
+  /* ---------------- exits ---------------- */
+  .exits { margin-top: 11px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .exit {
+    background: var(--red-tint); border: 1.5px solid #EBA79F; border-radius: 7px;
+    padding: 6px 7px; text-align: center;
+  }
+  .exit.warn { background: #FDF3E3; border-color: #EDBE8A; }
+  .exit .ei { font-size: 15px; }
+  .exit .en { font-size: 9px; font-weight: 800; color: var(--red); margin-top: 1px; letter-spacing: -0.01em; }
+  .exit.warn .en { color: var(--orange); }
+  .exit .ed { font-size: 8.5px; color: var(--soft); margin-top: 1px; line-height: 1.25; }
+  .exitlbl {
+    text-align: center; font-size: 10px; font-weight: 800; color: var(--red);
+    margin-top: 12px; letter-spacing: 0.02em;
+  }
+
+  /* ---------------- metric pills ---------------- */
+  .metrics { margin-top: 13px; display: flex; flex-direction: column; gap: 6px; }
+  .metric {
+    background: #fff; border: 1.5px solid var(--cl); border-radius: 8px;
+    padding: 6px 11px; display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 11px;
+  }
+  .metric .mk { font-weight: 700; }
+  .metric .mv { color: var(--soft); font-family: var(--mono); font-size: 10.5px; }
+  .metric .mv b { color: var(--ink); }
+
+  .exitband { margin-top: 14px; }
+  .exitband-lbl { text-align: center; font-size: 11px; font-weight: 800; color: var(--red); margin-bottom: 7px; }
+  .exitband-lbl b { color: var(--ink); }
+  .exits.wide { grid-template-columns: repeat(6, 1fr); margin-top: 0; }
+  .exits.wide .exit { padding: 8px 9px; }
+  .exits.wide .ei { font-size: 17px; }
+  .exits.wide .en { font-size: 10px; }
+  .exits.wide .ed { font-size: 9.5px; }
+
+  .foot {
+    text-align: center; margin-top: 14px;
+    font-family: var(--mono); font-size: 10px; color: var(--faint);
+  }
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <span class="tick"></span>
+    <span class="chip" style="background: var(--green)">BUILD</span>
+    <span class="vs">vs.</span>
+    <span class="chip" style="background: var(--blue)">ASK</span>
+    <span class="vs">vs.</span>
+    <span class="chip" style="background: var(--purple)">VERIFY</span>
+    <span class="vs">vs.</span>
+    <span class="chip" style="background: var(--teal)">OBSERVE</span>
+    <span class="tail">— The Chalk Toss</span>
+  </div>
+
+  <div class="cols">
+
+    <!-- ============ BUILD ============ -->
+    <div class="col g">
+      <h2>Build</h2>
+      <p class="when">Runs once, on a laptop</p>
+
+      <div class="node">
+        <span class="pill">API key</span>
+        <div class="card">
+          <span class="ico">🔑</span>
+          <div class="cap"><b>~/.balldontlie_key</b><br>chmod 600, outside the repo</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Paid tier — free tier has no per-player box scores</span></div>
+
+      <div class="node">
+        <span class="pill">extract.mjs</span>
+        <div class="card">
+          <span class="ico">⚙️</span>
+          <div class="cap">Pulls <b>22 seasons</b> + <b>1,946</b> game logs</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Every game, not a sample — a sample only answers the axis you sampled on</span></div>
+
+      <div class="node">
+        <span class="pill">seed.sql</span>
+        <div class="card">
+          <span class="ico">📄</span>
+          <div class="cap">Committed to the repo — restorable without the API key</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">wrangler d1 execute --remote</span></div>
+
+      <div class="node">
+        <span class="pill n-green">D1</span>
+        <div class="card n-green">
+          <span class="ico">🗄️</span>
+          <div class="cap"><b>seasons</b> · <b>games</b> · <b>data_provenance</b></div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><span class="mk">Games</span><span class="mv"><b>1,912</b> — every one</span></div>
+        <div class="metric"><span class="mk">Seasons</span><span class="mv"><b>22</b> (2003–2025)</span></div>
+        <div class="metric"><span class="mk">Storage</span><span class="mv"><b>299 KB</b> of 5 GB</span></div>
+      </div>
+    </div>
+
+    <!-- ============ ASK ============ -->
+    <div class="col b">
+      <h2>Ask</h2>
+      <p class="when">Every question · ~1.2s cold, ~0.4s cached</p>
+
+      <div class="node">
+        <span class="pill">Client</span>
+        <div class="card">
+          <span class="ico">🌐</span>
+          <div class="cap">Browser sends a <b>Turnstile token</b> · scripts send an <b>API key</b></div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Checked BEFORE any inference — this is where spending starts</span></div>
+
+      <div class="node">
+        <span class="pill n-red">Worker · access.js</span>
+        <div class="card n-red">
+          <span class="ico">🛡️</span>
+          <div class="cap">Authorize, then validate the input</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Schema + question. Repeats served from cache for 0 Neurons</span></div>
+
+      <div class="node">
+        <span class="pill n-orange">AI Gateway → Workers AI</span>
+        <div class="card n-orange">
+          <span class="ico">🧠</span>
+          <div class="cap"><b>Question → SQL</b><br>qwen2.5-coder-32b · temp 0 · 33.2 N</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Model output is untrusted until it passes the guard</span></div>
+
+      <div class="node">
+        <span class="pill n-red">Worker · guard.js</span>
+        <div class="card n-red">
+          <span class="ico">✅</span>
+          <div class="cap">Strips comments and literals, asserts <b>one SELECT</b>, injects its own LIMIT</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Only now does anything touch the database</span></div>
+
+      <div class="node">
+        <span class="pill n-green">D1 · SQLite</span>
+        <div class="card n-green">
+          <span class="ico">🗄️</span>
+          <div class="cap"><b>The only source of any number the user sees</b> · ~9ms</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">The model sees ONLY these rows — never asked to recall anything</span></div>
+
+      <div class="node">
+        <span class="pill n-orange">AI Gateway → Workers AI</span>
+        <div class="card n-orange">
+          <span class="ico">💬</span>
+          <div class="cap"><b>Rows → prose</b><br>llama-3.2-3b · 2.3 N</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span></div>
+
+      <div class="node">
+        <span class="pill n-green">Answer</span>
+        <div class="card n-green">
+          <span class="ico">📊</span>
+          <div class="cap">Returned with <b>the SQL that ran</b> and <b>the rows</b> — the prose never appears alone</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ VERIFY ============ -->
+    <div class="col p">
+      <h2>Verify</h2>
+      <p class="when">npm run eval · on demand</p>
+
+      <div class="node">
+        <span class="pill">eval/cases.js</span>
+        <div class="card">
+          <span class="ico">📋</span>
+          <div class="cap"><b>20 questions</b>, each paired with a query we wrote and trust</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Every shipped bug is a case tagged regression</span></div>
+
+      <div class="node">
+        <span class="pill n-green">D1 — the answer key</span>
+        <div class="card n-green">
+          <span class="ico">🎯</span>
+          <div class="cap">Our query runs against live data, so expectations <b>cannot go stale</b></div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Same question, asked in English</span></div>
+
+      <div class="node">
+        <span class="pill">/api/ask · skipCache</span>
+        <div class="card">
+          <span class="ico">🔁</span>
+          <div class="cap">Bypasses the cache, or it would test <b>the cache, not the model</b></div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Compare RESULTS, not SQL text — many correct queries exist</span></div>
+
+      <div class="node">
+        <span class="pill">Verdict</span>
+        <div class="card">
+          <span class="ico">⚖️</span>
+          <div class="cap">Failures print <b>both queries</b> side by side</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><span class="mk">Today</span><span class="mv"><b>20 / 20</b> passing</span></div>
+        <div class="metric"><span class="mk">qwen-32b</span><span class="mv"><b>20/20</b> · 33.2 N</span></div>
+        <div class="metric"><span class="mk">llama-3b</span><span class="mv"><b>14/20</b> · 2.3 N</span></div>
+        <div class="metric"><span class="mk">Cost / run</span><span class="mv"><b>~710</b> Neurons</span></div>
+      </div>
+
+      <div class="metrics" style="margin-top: 9px;">
+        <div class="metric" style="border-style: dashed;">
+          <span class="mk" style="font-size: 10px; line-height: 1.35;">It found the <b>partial-answer</b> bug on its first run, and settled the model choice with a number instead of an instinct.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ OBSERVE ============ -->
+    <div class="col t">
+      <h2>Observe</h2>
+      <p class="when">admin.jermainebethune.com · private</p>
+
+      <div class="node">
+        <span class="pill">Cloudflare Access</span>
+        <div class="card">
+          <span class="ico">🔐</span>
+          <div class="cap">Challenges the hostname. Locked to <b>one email</b>, 24h session</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Access guards a HOSTNAME, not a Worker — so the Worker checks too</span></div>
+
+      <div class="node">
+        <span class="pill n-red">Worker · access-jwt.js</span>
+        <div class="card n-red">
+          <span class="ico">🎫</span>
+          <div class="cap">Verifies the signature <b>and the aud claim</b> — a token for another app is refused</div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">workers.dev disabled — no second door to guard</span></div>
+
+      <div class="node">
+        <span class="pill">Gathers, in parallel</span>
+        <div class="card">
+          <span class="ico">📡</span>
+          <div class="cap"><b>D1</b> binding · <b>GraphQL</b> analytics · live <b>health check</b></div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="ln"></span><span class="note">Renders without the API token — degrades, never fails</span></div>
+
+      <div class="node">
+        <span class="pill n-green">Dashboard</span>
+        <div class="card n-green">
+          <span class="ico">📈</span>
+          <div class="cap">Budget bars, inference by model, database state, hours to reset</div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><span class="mk">Anonymous</span><span class="mv">blocked</span></div>
+        <div class="metric"><span class="mk">workers.dev</span><span class="mv">404 — no route</span></div>
+        <div class="metric"><span class="mk">Forged JWT</span><span class="mv">403</span></div>
+        <div class="metric"><span class="mk">Neurons used</span><span class="mv"><b>0</b> — no AI here</span></div>
+      </div>
+    </div>
+
+  </div>
+
+
+  <div class="exitband">
+    <div class="exitband-lbl">Or the <b>Ask</b> path declines — six ways, and every one exists because something went wrong first</div>
+    <div class="exits wide">
+      <div class="exit"><div class="ei">🚫</div><div class="en">Not authorized</div><div class="ed">No Turnstile token, no valid key. Rejected before a single Neuron is spent.</div></div>
+      <div class="exit"><div class="ei">🤷</div><div class="en">Out of scope</div><div class="ed">Awards, salary, "who's the GOAT" — returns UNANSWERABLE, no query runs.</div></div>
+      <div class="exit"><div class="ei">⛔</div><div class="en">Query rejected</div><div class="ed">Stacked statements, mutations, comment smuggling — refused with a reason.</div></div>
+      <div class="exit"><div class="ei">❓</div><div class="en">No such column</div><div class="ed">A query against data we don't hold reads as "not in this database" — never as a number.</div></div>
+      <div class="exit"><div class="ei">0️⃣</div><div class="en">Zero rows</div><div class="ed">Decided in code before any model call. Removes 22% of inference.</div></div>
+      <div class="exit warn"><div class="ei">✂️</div><div class="en">Partial, disclosed</div><div class="ed">Over 100 rows: says "showing the first 100 — there are more" rather than implying completeness.</div></div>
+    </div>
+  </div>
+
+  <p class="foot">chalk.jermainebethune.com · github.com/jermainebethune/lebron-chalk-toss · Workers · Workers AI · D1 · Turnstile · AI Gateway · static assets</p>
+
+</body>
+</html>

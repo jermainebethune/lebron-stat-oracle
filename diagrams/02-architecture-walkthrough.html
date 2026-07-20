@@ -1,0 +1,414 @@
+<title>The Chalk Toss — System Architecture</title>
+
+<style>
+  :root {
+    --ground: #FAF9F6;
+    --panel: #FFFFFF;
+    --sunk: #F2F0EB;
+    --ink: #16181C;
+    --soft: #545962;
+    --faint: #8B9098;
+    --rule: #E2DFD8;
+    --rule-soft: #EDEAE3;
+
+    --ai: #D9660A;          /* model involved — output is untrusted */
+    --ai-wash: #FCF0E3;
+    --data: #10707E;        /* ground truth — numbers originate here */
+    --data-wash: #E4F0F1;
+    --stop: #A32E1B;        /* refusal / guard */
+    --stop-wash: #FBEBE7;
+    --edge: #5B5F97;        /* platform / infrastructure */
+    --edge-wash: #ECEDF5;
+
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --display: "Avenir Next", Futura, "Trebuchet MS", sans-serif;
+    --body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #101114; --panel: #191B1F; --sunk: #141519;
+      --ink: #EDEBE6; --soft: #A6AAB2; --faint: #6B7079;
+      --rule: #2B2E34; --rule-soft: #232629;
+      --ai: #F0964C; --ai-wash: #2B1D11;
+      --data: #56B3BF; --data-wash: #0F2529;
+      --stop: #E08A78; --stop-wash: #2B1714;
+      --edge: #9AA0DC; --edge-wash: #1B1D2B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #101114; --panel: #191B1F; --sunk: #141519;
+    --ink: #EDEBE6; --soft: #A6AAB2; --faint: #6B7079;
+    --rule: #2B2E34; --rule-soft: #232629;
+    --ai: #F0964C; --ai-wash: #2B1D11;
+    --data: #56B3BF; --data-wash: #0F2529;
+    --stop: #E08A78; --stop-wash: #2B1714;
+    --edge: #9AA0DC; --edge-wash: #1B1D2B;
+  }
+  :root[data-theme="light"] {
+    --ground: #FAF9F6; --panel: #FFFFFF; --sunk: #F2F0EB;
+    --ink: #16181C; --soft: #545962; --faint: #8B9098;
+    --rule: #E2DFD8; --rule-soft: #EDEAE3;
+    --ai: #D9660A; --ai-wash: #FCF0E3;
+    --data: #10707E; --data-wash: #E4F0F1;
+    --stop: #A32E1B; --stop-wash: #FBEBE7;
+    --edge: #5B5F97; --edge-wash: #ECEDF5;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 3.5rem 1.5rem 6rem;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    line-height: 1.6;
+  }
+
+  .wrap { max-width: 52rem; margin: 0 auto; display: flex; flex-direction: column; gap: 3.5rem; }
+
+  /* ---------- header ---------- */
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--faint); margin: 0 0 0.8rem;
+  }
+  h1 {
+    font-family: var(--display); font-size: clamp(2rem, 5.5vw, 2.9rem);
+    font-weight: 600; letter-spacing: -0.025em; line-height: 1.05;
+    margin: 0 0 0.9rem; text-wrap: balance;
+  }
+  .lede { font-size: 1.06rem; color: var(--soft); max-width: 36rem; margin: 0; }
+
+  h2 {
+    font-family: var(--display); font-size: 1.2rem; font-weight: 600;
+    letter-spacing: -0.012em; margin: 0 0 0.4rem;
+  }
+  .sectnote { font-size: 0.9rem; color: var(--soft); margin: 0 0 1.5rem; max-width: 38rem; }
+  section { display: flex; flex-direction: column; }
+
+  /* ---------- legend ---------- */
+  .legend {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 0.9rem 1.5rem; padding: 1.1rem 1.25rem;
+    background: var(--sunk); border: 1px solid var(--rule); border-radius: 4px;
+  }
+  .key { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.85rem; color: var(--soft); }
+  .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex: none; margin-top: 0.45rem; }
+  .key b { color: var(--ink); font-weight: 600; display: block; font-size: 0.86rem; }
+
+  /* ---------- flow spine ---------- */
+  .flow { display: flex; flex-direction: column; }
+
+  .node {
+    display: grid; grid-template-columns: 3.4rem 1fr; gap: 1rem;
+    align-items: start;
+  }
+  .rail { position: relative; display: flex; flex-direction: column; align-items: center; }
+  .bead {
+    width: 2.1rem; height: 2.1rem; border-radius: 50%;
+    display: grid; place-items: center; flex: none;
+    background: var(--tint); border: 1.5px solid var(--tone);
+    font-family: var(--mono); font-size: 0.8rem; font-weight: 600; color: var(--tone);
+  }
+  .stem { width: 1.5px; flex: 1; min-height: 1.6rem; background: var(--rule); }
+  .node:last-child .stem { display: none; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--rule);
+    border-left: 3px solid var(--tone); border-radius: 4px;
+    padding: 0.95rem 1.15rem; margin-bottom: 0.5rem;
+    display: flex; flex-direction: column; gap: 0.5rem; min-width: 0;
+  }
+  .who {
+    font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.11em;
+    text-transform: uppercase; color: var(--tone);
+  }
+  .what { font-family: var(--display); font-size: 1.02rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  .why { font-size: 0.9rem; color: var(--soft); margin: 0; }
+
+  .node[data-tone="ai"]   { --tone: var(--ai);   --tint: var(--ai-wash); }
+  .node[data-tone="data"] { --tone: var(--data); --tint: var(--data-wash); }
+  .node[data-tone="edge"] { --tone: var(--edge); --tint: var(--edge-wash); }
+  .node[data-tone="stop"] { --tone: var(--stop); --tint: var(--stop-wash); }
+
+  code, .snip {
+    font-family: var(--mono); font-size: 0.78rem; line-height: 1.5;
+    background: var(--sunk); border: 1px solid var(--rule-soft);
+    border-radius: 3px; color: var(--soft);
+  }
+  code { padding: 0.1rem 0.35rem; }
+  .snip { padding: 0.55rem 0.7rem; overflow-x: auto; white-space: pre; display: block; }
+
+  /* ---------- branch-off (refusal paths) ---------- */
+  .branch {
+    margin: 0 0 0.5rem 0; padding: 0.55rem 0.8rem 0.55rem 1.5rem;
+    border-left: 1.5px dashed var(--stop);
+    font-size: 0.83rem; color: var(--soft); position: relative;
+  }
+  .branch b { color: var(--stop); font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  .branch span { display: block; margin-top: 0.15rem; }
+
+  /* ---------- two-up ---------- */
+  .duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+  .slab {
+    background: var(--panel); border: 1px solid var(--rule);
+    border-top: 3px solid var(--tone); border-radius: 4px; padding: 1rem 1.15rem;
+    display: flex; flex-direction: column; gap: 0.35rem;
+  }
+  .slab[data-tone="ai"]   { --tone: var(--ai); }
+  .slab[data-tone="data"] { --tone: var(--data); }
+  .slab .role { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.11em; text-transform: uppercase; color: var(--tone); }
+  .slab .model { font-family: var(--mono); font-size: 0.82rem; color: var(--ink); word-break: break-all; }
+  .slab .cost { font-size: 0.84rem; color: var(--soft); }
+  .slab .cost b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* ---------- build pipeline ---------- */
+  .pipe { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0.6rem; }
+  .stage {
+    flex: 1 1 8rem; background: var(--panel); border: 1px dashed var(--rule);
+    border-radius: 4px; padding: 0.8rem 0.9rem;
+    display: flex; flex-direction: column; gap: 0.25rem; min-width: 0;
+  }
+  .stage .nm { font-family: var(--mono); font-size: 0.76rem; color: var(--ink); word-break: break-word; }
+  .stage .ds { font-size: 0.8rem; color: var(--faint); }
+  .tick { align-self: center; color: var(--faint); font-family: var(--mono); flex: none; }
+
+  /* ---------- inventory ---------- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.87rem; background: var(--panel); }
+  th, td { text-align: left; padding: 0.65rem 1rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th {
+    font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--faint); font-weight: 400;
+    background: var(--sunk); border-bottom: 1px solid var(--rule);
+  }
+  td.svc { font-family: var(--mono); font-size: 0.8rem; white-space: nowrap; color: var(--ink); }
+  td.role { color: var(--soft); }
+
+  /* ---------- thesis ---------- */
+  .thesis {
+    background: var(--data-wash); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 1.3rem 1.5rem;
+    display: flex; flex-direction: column; gap: 0.7rem;
+  }
+  .thesis p { margin: 0; }
+  .thesis .big {
+    font-family: var(--display); font-size: 1.08rem; font-weight: 600;
+    letter-spacing: -0.012em; line-height: 1.4; text-wrap: balance;
+  }
+  .thesis .small { font-size: 0.92rem; color: var(--soft); }
+
+  footer {
+    font-size: 0.82rem; color: var(--faint);
+    border-top: 1px solid var(--rule); padding-top: 1.25rem;
+    display: flex; flex-direction: column; gap: 0.35rem;
+  }
+  footer a { color: var(--data); text-decoration: none; border-bottom: 1px solid var(--rule); }
+  footer a:hover, footer a:focus-visible { border-bottom-color: var(--data); }
+
+  @media (max-width: 34rem) {
+    .node { grid-template-columns: 2.6rem 1fr; gap: 0.7rem; }
+    .bead { width: 1.8rem; height: 1.8rem; font-size: 0.72rem; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">As built · 19 July 2026</p>
+    <h1>The Chalk Toss</h1>
+    <p class="lede">A natural-language question becomes a SQL query, the query returns real rows, and a second model describes only those rows. The model is never asked what it knows.</p>
+  </header>
+
+  <section>
+    <div class="legend">
+      <div class="key"><span class="dot" style="background: var(--ai)"></span><span><b>Model involved</b>Output is untrusted until validated</span></div>
+      <div class="key"><span class="dot" style="background: var(--data)"></span><span><b>Ground truth</b>Every number originates here</span></div>
+      <div class="key"><span class="dot" style="background: var(--edge)"></span><span><b>Platform</b>Worker, routing, edge</span></div>
+      <div class="key"><span class="dot" style="background: var(--stop)"></span><span><b>Refusal</b>Where it stops rather than guesses</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Request path</h2>
+    <p class="sectnote">Dashed branches are the five ways the system declines to answer. They matter more than the happy path — each one is a place where a lesser design would return a confident number instead.</p>
+
+    <div class="flow">
+
+      <div class="node" data-tone="edge">
+        <div class="rail"><div class="bead">1</div><div class="stem"></div></div>
+        <div>
+          <div class="card">
+            <div class="who">Browser → two entry points</div>
+            <p class="what">A question in plain English</p>
+            <p class="why"><code>chalk.jermainebethune.com</code> serves people. <code>*.workers.dev</code> serves API clients — the zone's bot protection challenges non-browser traffic on the custom domain, so both stay live on purpose.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="node" data-tone="stop">
+        <div class="rail"><div class="bead">2</div><div class="stem"></div></div>
+        <div>
+          <div class="card">
+            <div class="who">Worker · src/access.js</div>
+            <p class="what">Validates input, then checks who is asking</p>
+            <p class="why">Rejects empty or oversized questions, then requires either a <b>Turnstile</b> token (what the page sends) or an <code>x-api-key</code> header (for programmatic use). Also reads <code>data_provenance</code> — if the dataset were ever unverified, every response says so.</p>
+          </div>
+          <div class="branch"><b>Refusal 0 · not authorized</b><span>No Turnstile token and no valid key. This check runs <i>before</i> any inference — it is the line where spending starts, and it was added after realizing anyone could drain the daily Neuron budget with a loop.</span></div>
+        </div>
+      </div>
+
+      <div class="node" data-tone="ai">
+        <div class="rail"><div class="bead">3</div><div class="stem"></div></div>
+        <div>
+          <div class="card">
+            <div class="who">AI Gateway → Workers AI · qwen2.5-coder-32b</div>
+            <p class="what">Writes a SQL query</p>
+            <p class="why">Given the schema and the question, temperature 0. Asked for a statement — never for an answer.</p>
+            <span class="snip">SELECT date, opponent, points FROM games
+WHERE opponent = 'BOS' AND points >= 40</span>
+          </div>
+          <div class="branch"><b>Refusal 1 · out of scope</b><span>Awards, salary, "who's the GOAT" — the model returns <code>UNANSWERABLE</code> and no query runs.</span></div>
+        </div>
+      </div>
+
+      <div class="node" data-tone="stop">
+        <div class="rail"><div class="bead">4</div><div class="stem"></div></div>
+        <div>
+          <div class="card">
+            <div class="who">Guard · src/guard.js</div>
+            <p class="what">Validates the SQL before it runs</p>
+            <p class="why">An allowlist with a preprocessing pass, not a keyword blocklist. Strips comments and string literals first so nothing can hide a second statement, asserts a single SELECT, then scans for forbidden constructs and caps the row limit. 15 unit tests.</p>
+          </div>
+          <div class="branch"><b>Refusal 2 · rejected query</b><span>Stacked statements, mutations, comment smuggling — rejected with a reason. The model never gets a second try at improvising an answer.</span></div>
+        </div>
+      </div>
+
+      <div class="node" data-tone="data">
+        <div class="rail"><div class="bead">5</div><div class="stem"></div></div>
+        <div>
+          <div class="card">
+            <div class="who">D1 · SQLite at the edge</div>
+            <p class="what">Runs the query, returns real rows</p>
+            <p class="why">22 seasons of averages and all 1,912 games — minutes, points, rebounds, assists, steals, blocks, turnovers. This is the only source of any figure the user will see; nothing downstream can alter a number.</p>
+            <span class="snip">2012-06-07 | BOS | 45
+2018-05-25 | BOS | 46</span>
+          </div>
+          <div class="branch"><b>Refusal 3 · column doesn't exist</b><span>A query against data we don't have reads as "not in this database" — never as a number. An empty column would answer; a missing one cannot.</span></div>
+          <div class="branch"><b>Partial · row cap hit</b><span>The guard injects <code>LIMIT 100</code>. When a query has more results than that, the answer says "showing the first 100 — there are more" rather than implying it is complete. Found by the eval harness on its first full run: "40+ games" has 108 results and was being presented as all of them.</span></div>
+          <div class="branch"><b>Refusal 4 · zero rows</b><span>Decided in code, before any model call. This branch was once a prompt instruction and the model fired it wrongly 1 run in 3. It also removes 22% of inference calls.</span></div>
+        </div>
+      </div>
+
+      <div class="node" data-tone="ai">
+        <div class="rail"><div class="bead">6</div><div class="stem"></div></div>
+        <div>
+          <div class="card">
+            <div class="who">AI Gateway → Workers AI · llama-3.2-3b</div>
+            <p class="what">Describes the rows it was handed</p>
+            <p class="why">Only ever sees a non-empty result set. Not asked to recall anything, so it has nothing to get wrong — and a bigger model couldn't improve a summary whose facts are already fixed.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="node" data-tone="data">
+        <div class="rail"><div class="bead">7</div><div class="stem"></div></div>
+        <div>
+          <div class="card">
+            <div class="who">Browser</div>
+            <p class="what">Answer, query, and source rows together</p>
+            <p class="why">The prose never appears alone. The SQL that ran and the rows it returned sit directly beneath it, so any reader can check the sentence against the data it came from. That transparency is the product.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>The two model calls</h2>
+    <p class="sectnote">Different jobs, different models, measured cost. The split is the whole cost story.</p>
+    <div class="duo">
+      <div class="slab" data-tone="ai">
+        <span class="role">Step 3 · writes SQL</span>
+        <span class="model">@cf/qwen/qwen2.5-coder-32b-instruct</span>
+        <span class="cost"><b>33.2</b> Neurons per call — 94% of total spend. Code-specialized because a wrong query is the biggest source of wrong answers.</span>
+      </div>
+      <div class="slab" data-tone="data">
+        <span class="role">Step 6 · writes prose</span>
+        <span class="model">@cf/meta/llama-3.2-3b-instruct</span>
+        <span class="cost"><b>2.3</b> Neurons per call. Small on purpose — the facts are already fixed by the time it runs. <b>A repeat question costs 0</b>, served from the gateway cache in ~0.4s.</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Build path</h2>
+    <p class="sectnote">Runs once, on a laptop. The API key lives here and never reaches production — the deployed Worker reads D1 and nothing else.</p>
+    <div class="pipe">
+      <div class="stage"><span class="nm">~/.balldontlie_key</span><span class="ds">Local only, gitignored</span></div>
+      <span class="tick">→</span>
+      <div class="stage"><span class="nm">extract.mjs</span><span class="ds">Fetches 22 seasons + every game log, writes all 1,912 with full stat lines</span></div>
+      <span class="tick">→</span>
+      <div class="stage"><span class="nm">seed.sql</span><span class="ds">Generated, committed, never hand-edited</span></div>
+      <span class="tick">→</span>
+      <div class="stage"><span class="nm">D1</span><span class="ds">wrangler d1 execute</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Verifying it still works</h2>
+    <p class="sectnote">Every bug listed on this page was a SQL-generation error found by hand, one at a time. <code>npm run eval</code> is the systematic version — 20 questions, each paired with a query we wrote and trust.</p>
+    <div class="pipe">
+      <div class="stage"><span class="nm">eval/cases.js</span><span class="ds">Question + a query we trust. Shipped bugs are tagged <code>regression</code></span></div>
+      <span class="tick">→</span>
+      <div class="stage"><span class="nm">D1 (truth)</span><span class="ds">Our query runs against live data — expectations can never go stale</span></div>
+      <span class="tick">→</span>
+      <div class="stage"><span class="nm">/api/ask</span><span class="ds">Asked in English, with <code>skipCache</code> so it tests the model and not the cache</span></div>
+      <span class="tick">→</span>
+      <div class="stage"><span class="nm">compare results</span><span class="ds">Not SQL text — many correct queries exist for any question</span></div>
+    </div>
+    <p class="sectnote" style="margin-top: 1.25rem;">It found the row-cap bug above on its first run, and settled the model question with a measurement: <b>qwen2.5-coder-32b scores 20/20 at 33.2 Neurons a call; llama-3.2-3b scores 14/20 at 2.3.</b> The cheap model failed three refusals — answering "how many championships?" with <code>SELECT COUNT(opponent) FROM games WHERE playoff = 1</code>. 14× cheaper was not worth 30% wrong.</p>
+  </section>
+
+  <section>
+    <h2>Components</h2>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Piece</th><th>What it does</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="svc">Workers</td><td class="role">Hosts everything — routing, validation, orchestration, and the page itself</td></tr>
+          <tr><td class="svc">Workers AI</td><td class="role">Two inference calls per question, on two different models</td></tr>
+          <tr><td class="svc">D1</td><td class="role">SQLite at the edge. Tables: <code>seasons</code>, <code>games</code>, <code>data_provenance</code></td></tr>
+          <tr><td class="svc">deploy.sh</td><td class="role">Emails a summary after a successful deploy — Cloudflare has no "Worker deployed" alert type</td></tr>
+          <tr><td class="svc">Turnstile</td><td class="role">Proves a human is asking before a Neuron is spent; API key covers programmatic use</td></tr>
+          <tr><td class="svc">guard.js</td><td class="role">The security boundary. Validates model-authored SQL before execution</td></tr>
+          <tr><td class="svc">data_provenance</td><td class="role">Records whether the dataset is verified. Gates the placeholder banner</td></tr>
+          <tr><td class="svc">extract.mjs</td><td class="role">Build-time only. Regenerates the dataset from the balldontlie API</td></tr>
+          <tr><td class="svc">AI Gateway</td><td class="role">Fronts every inference — caching, request logs, per-model analytics. Repeat questions cost 0 Neurons</td></tr>
+          <tr><td class="svc">eval/</td><td class="role">20 cases pairing a question with a query we trust; compares results, not SQL text</td></tr>
+          <tr><td class="svc">Static assets</td><td class="role">Serves the photographs from ./public; anything not matching a file falls through to the Worker</td></tr>
+          <tr><td class="svc">Custom domain</td><td class="role">chalk.jermainebethune.com for people; workers.dev kept live for API clients</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="thesis">
+      <p class="big">Grounding a model in a datastore prevents invented numbers. It does not prevent a wrong query from producing a confidently wrong answer.</p>
+      <p class="small">"How many MVPs did he win?" once returned <b>0</b> — the awards column existed but was empty, so the query succeeded and produced a real, meaningless figure. Every number was from the database. The answer was still wrong. An empty column is more dangerous than a missing one, because an empty column answers.</p>
+      <p class="small">That is why five of the seven steps above can refuse, and why the rows are always shown next to the sentence.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p><a href="https://chalk.jermainebethune.com">chalk.jermainebethune.com</a> &nbsp;·&nbsp; <a href="https://github.com/jermainebethune/lebron-chalk-toss">github.com/jermainebethune/lebron-chalk-toss</a></p>
+    <p>Cost figures measured via the GraphQL analytics API (<code>aiInferenceAdaptiveGroups</code>), not estimated. Data from the balldontlie API; per-player box scores require a paid tier.</p>
+  </footer>
+
+</div>

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Where does everything actually live?</title>
+<style>
+  :root{
+    --cream:#FBFAEF;--ink:#1A1D23;--soft:#5C6470;--faint:#949CA7;
+    --new:#1E5FD0;--new-tint:#E9F0FD;--new-line:#A9C4F2;
+    --green:#17864F;--green-tint:#E8F5EE;--green-line:#A8D8BE;
+    --orange:#D9700A;--orange-tint:#FDF0E2;--orange-line:#EDBE8A;
+    --purple:#7A3FD4;--purple-tint:#F0EAFC;--purple-line:#C6ACF0;
+    --red:#C42B21;--red-tint:#FCEAE8;--red-line:#EBA79F;
+    --sans:"Avenir Next",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:20px 24px;width:1500px;background:var(--cream);color:var(--ink);
+       font-family:var(--sans);zoom:0.9}
+  .head{display:flex;align-items:center;gap:11px;margin-bottom:4px}
+  .tick{width:5px;height:32px;background:var(--new);border-radius:3px}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .sub{font-size:12.5px;color:var(--soft);margin:0 0 14px 16px}
+  .sub b{color:var(--ink)}
+  .band{margin-bottom:12px}
+  .bandlbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;
+           color:var(--faint);margin-bottom:6px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .panel{border:1.5px solid var(--pl);background:var(--pt);border-radius:12px;padding:13px 15px}
+  .p-new{--pl:var(--new-line);--pt:var(--new-tint)}
+  .p-green{--pl:var(--green-line);--pt:var(--green-tint)}
+  .p-orange{--pl:var(--orange-line);--pt:var(--orange-tint)}
+  .p-purple{--pl:var(--purple-line);--pt:var(--purple-tint)}
+  .panel h3{font-size:15px;font-weight:800;margin:0 0 2px}
+  .panel .lede{font-size:11px;color:var(--soft);margin:0 0 9px}
+  .big{font-family:var(--mono);font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .biglbl{font-size:10px;color:var(--soft);margin-top:2px}
+  .dots{display:flex;flex-wrap:wrap;gap:3px;margin:9px 0}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--new);opacity:.5}
+  .dot.on{opacity:1}
+  .pin{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--green-line);
+       border-radius:8px;padding:7px 10px;margin-top:8px}
+  .pin .p{font-family:var(--mono);font-size:11px;font-weight:700}
+  .pin .s{font-size:10px;color:var(--soft)}
+  table{width:100%;border-collapse:collapse;font-size:11px;background:#fff;
+        border:1.5px solid var(--new-line);border-radius:9px;overflow:hidden}
+  th,td{padding:7px 11px;text-align:left;border-bottom:1px solid #EDF1F5;vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  th{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
+     color:var(--faint);font-weight:500;background:#FAFBFC}
+  td.w{font-weight:700}
+  td .m{font-family:var(--mono);font-size:10px}
+  .yes{color:var(--green);font-weight:700}
+  .no{color:var(--red);font-weight:700}
+  .machine{background:#fff;border:1.5px solid var(--purple-line);border-radius:10px;padding:11px 13px}
+  .iso{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 6px}
+  .cell{width:26px;height:20px;border-radius:4px;background:#EEE9F8;border:1px solid #DCD2F1}
+  .cell.you{background:var(--new);border-color:var(--new);position:relative}
+  .cell.you::after{content:"you";position:absolute;inset:0;display:grid;place-items:center;
+                   font-size:7px;color:#fff;font-weight:800}
+  .trace{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tr{background:#fff;border:1.5px solid var(--tl);border-left-width:3px;border-radius:0 9px 9px 0;padding:10px 13px}
+  .tr.fast{--tl:var(--green)}
+  .tr.slow{--tl:var(--orange)}
+  .tr .th{font-size:12px;font-weight:800}
+  .tr ol{margin:6px 0 0;padding-left:16px}
+  .tr li{font-size:10.5px;color:var(--soft);margin-bottom:3px}
+  .tr li b{color:var(--ink)}
+  .punch{margin-top:12px;background:var(--orange-tint);border:1.5px solid var(--orange-line);
+         border-radius:10px;padding:11px 15px}
+  .punch .t{font-size:13.5px;font-weight:800}
+  .punch .d{font-size:11px;color:var(--soft);margin-top:3px}
+  .punch b{color:var(--ink)}
+  .foot{margin-top:11px;text-align:center;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <span class="tick"></span>
+    <h1>Where does everything actually live?</h1>
+  </div>
+  <p class="sub">There is no "the server." <b>Your code is everywhere. Your data is in Virginia.</b> That gap is the real architecture.</p>
+
+  <!-- 1 -->
+  <div class="band">
+    <div class="bandlbl">1 · The split that matters</div>
+    <div class="two">
+      <div class="panel p-new">
+        <h3>⚡ Your code — everywhere</h3>
+        <p class="lede"><span class="m" style="font-family:var(--mono)">wrangler deploy</span> copies the whole script, including the 18 KB HTML string, to every data centre Cloudflare runs.</p>
+        <div class="big">~300</div>
+        <div class="biglbl">cities holding a copy of your Worker</div>
+        <div class="dots">
+          <span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot"></span><span class="dot on"></span>
+          <span class="dot"></span><span class="dot on"></span><span class="dot on"></span><span class="dot"></span><span class="dot on"></span>
+          <span class="dot on"></span><span class="dot"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span>
+          <span class="dot"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot"></span>
+          <span class="dot on"></span><span class="dot on"></span><span class="dot"></span><span class="dot on"></span><span class="dot on"></span>
+        </div>
+        <p class="lede" style="margin:0"><b>Your page is not a file.</b> It is a string inside code that has been replicated globally, manufactured on demand and thrown away.</p>
+      </div>
+
+      <div class="panel p-green">
+        <h3>🗄️ Your data — one place</h3>
+        <p class="lede">D1 is not replicated to the edge. It sits in a single region, and every query goes there.</p>
+        <div class="big">1</div>
+        <div class="biglbl">region holding your 1,912 games</div>
+        <div class="pin">
+          <span style="font-size:17px">📍</span>
+          <span>
+            <span class="p">ENAM · colo IAD</span><br>
+            <span class="s">Ashburn, Virginia — stamped on every query response today</span>
+          </span>
+        </div>
+        <p class="lede" style="margin:8px 0 0"><b>"Edge computing" does not mean fast everywhere.</b> It means your code is close. Whether that helps depends on what the code has to reach.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="band">
+    <div class="bandlbl">2 · Four storage layers, and they do not behave the same</div>
+    <table>
+      <thead><tr><th>What</th><th>Where it lives</th><th>Replicated?</th><th>What that means for you</th></tr></thead>
+      <tbody>
+        <tr><td class="w">Worker code<br><span class="m" style="color:var(--soft)">incl. your HTML string</span></td>
+            <td>Every Cloudflare location</td><td class="yes">Yes — everywhere</td>
+            <td>The page is generated locally to the visitor. Nothing to fetch.</td></tr>
+        <tr><td class="w">Static assets<br><span class="m" style="color:var(--soft)">/img/*.jpg</span></td>
+            <td>Distributed and cached at the edge</td><td class="yes">Yes</td>
+            <td>Served without running your code at all — costs no Worker CPU.</td></tr>
+        <tr><td class="w">Secrets<br><span class="m" style="color:var(--soft)">TURNSTILE_SECRET, API_KEY</span></td>
+            <td>Encrypted, distributed with the Worker config</td><td class="yes">Yes</td>
+            <td>Available as <span class="m">env.X</span> wherever the code runs. Never in the repo.</td></tr>
+        <tr><td class="w">D1 database<br><span class="m" style="color:var(--soft)">seasons · games · provenance</span></td>
+            <td><b>ENAM — Ashburn, Virginia</b></td><td class="no">No — one region</td>
+            <td><b>Every query travels there and back</b>, from wherever the Worker ran.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 3 + 4 -->
+  <div class="band">
+    <div class="bandlbl">3 · Inside any one machine — and what the split costs</div>
+    <div class="two">
+      <div class="panel p-purple">
+        <h3>🧩 One machine, thousands of tenants</h3>
+        <p class="lede">Zoom into a single machine in Ashburn. Right now it is running thousands of isolates belonging to thousands of unrelated customers.</p>
+        <div class="machine">
+          <div class="iso">
+            <span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span>
+            <span class="cell"></span><span class="cell you"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span>
+            <span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span>
+            <span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span>
+          </div>
+          <p class="lede" style="margin:0;font-size:10px">Each sandbox ~3 MB · starts in ~5 ms · cannot see the others' memory · most alive for milliseconds</p>
+        </div>
+        <p class="lede" style="margin:9px 0 0"><b>This is the trade.</b> Cloudflare cannot give you a machine — that would be absurd for something idle most of the time. You get a slot on a shared one. In exchange you accept 10 ms CPU, no filesystem, no memory between requests.</p>
+      </div>
+
+      <div class="panel p-orange">
+        <h3>🌍 The same request, two places</h3>
+        <div class="trace">
+          <div class="tr fast">
+            <div class="th">From New Jersey 🇺🇸</div>
+            <ol>
+              <li>Worker runs in <b>a nearby colo</b></li>
+              <li>D1 query → <b>Ashburn, next door</b></li>
+              <li>AI → Workers AI</li>
+              <li><b>~1.2s total</b></li>
+            </ol>
+          </div>
+          <div class="tr slow">
+            <div class="th">From Singapore 🇸🇬</div>
+            <ol>
+              <li>Worker runs <b>in Singapore</b> — code is local</li>
+              <li>D1 query → <b>across the Pacific to Virginia</b></li>
+              <li>and back again</li>
+              <li><b>Noticeably slower</b>, and the code did nothing wrong</li>
+            </ol>
+          </div>
+        </div>
+        <p class="lede" style="margin:9px 0 0">You sit beside your own database, so you never feel this. <b>A user on the other side of the world would.</b> The fix is read replicas or moving the data — not faster code.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="band">
+    <div class="bandlbl">4 · "Cached" vs "stored" — the distinction that decides what can break</div>
+    <div class="two">
+      <div class="panel p-red" style="--pl:var(--red-line);--pt:var(--red-tint)">
+        <h3>🗂️ A normal CDN — this IS caching</h3>
+        <p class="lede">A temporary copy of something that lives somewhere else.</p>
+        <div class="machine" style="border-color:var(--red-line)">
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.9">
+            edge cache <span style="color:var(--soft)">(temporary)</span><br>
+            &nbsp;&nbsp;↓ <span style="color:var(--red);font-weight:700">miss</span><br>
+            your server <span style="color:var(--soft)">(the truth)</span><br>
+            &nbsp;&nbsp;<span style="color:var(--red);font-weight:700">↑ if this is down, you are down</span>
+          </div>
+        </div>
+        <p class="lede" style="margin:8px 0 0">The origin is the real home. The edge just holds a copy for a while.</p>
+      </div>
+
+      <div class="panel p-green">
+        <h3>📦 Pages and Workers — this is NOT caching</h3>
+        <p class="lede">Built once from GitHub, then <b>uploaded and replicated</b>. There is no origin behind it.</p>
+        <div class="machine" style="border-color:var(--green-line)">
+          <div style="font-family:var(--mono);font-size:11px;line-height:1.9">
+            edge <span style="color:var(--soft)">(the truth, everywhere)</span><br>
+            &nbsp;&nbsp;<span style="color:var(--green);font-weight:700">↑ there is no "behind"</span><br>
+            <span style="color:var(--soft)">nothing to fall back to</span><br>
+            <span style="color:var(--soft)">nothing to be down</span>
+          </div>
+        </div>
+        <p class="lede" style="margin:8px 0 0"><b>This is why static sites on Pages are hard to break.</b> A cache miss cannot hurt you, because a miss is not possible in the same way.</p>
+      </div>
+    </div>
+    <p class="lede" style="margin:8px 0 0;font-size:10.5px;color:var(--soft)">
+      <b style="color:var(--ink)">D1 is the exception</b> — it genuinely lives in one place, which makes it the only part of the stack that behaves like a traditional origin.
+      <i>Caching does still happen on top of all this (AI Gateway, browser, CDN response caching) — but that is a layer above storage, not the storage itself.</i>
+    </p>
+  </div>
+
+  <div class="punch">
+    <div class="t">🎯 So — where is your page stored?</div>
+    <div class="d">
+      <b>Nowhere, and everywhere.</b> It exists as text inside code copied to every Cloudflare data centre. A request lands at the nearest one, a sandbox starts, your function returns that string, and the sandbox disappears.
+      Nothing is kept for you. <b>The code is replicated; the page is manufactured on demand and discarded.</b> The only thing that genuinely sits still is your data — in Virginia.
+    </div>
+  </div>
+
+  <p class="foot">chalk.jermainebethune.com · D1 colo IAD confirmed from live query metadata · Workers · D1 · static assets</p>
+
+</body>
+</html>

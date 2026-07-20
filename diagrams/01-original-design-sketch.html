@@ -1,0 +1,432 @@
+<title>Stat Oracle — Architecture</title>
+
+<style>
+  :root {
+    --ground: #FBFAF8;
+    --panel: #FFFFFF;
+    --ink: #14161A;
+    --ink-soft: #52565E;
+    --ink-faint: #8A8F98;
+    --rule: #E3E1DC;
+    --ai: #E8730C;
+    --ai-wash: #FDF1E4;
+    --data: #1F6F7A;
+    --data-wash: #E6F1F2;
+    --warn: #A3341F;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --display: "Avenir Next", "Futura", "Trebuchet MS", sans-serif;
+    --body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #121316;
+      --panel: #1A1C20;
+      --ink: #EDEBE7;
+      --ink-soft: #A8ACB4;
+      --ink-faint: #6E737C;
+      --rule: #2C2F35;
+      --ai: #F59A47;
+      --ai-wash: #2A1E12;
+      --data: #5FB8C4;
+      --data-wash: #12262A;
+      --warn: #E08472;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #121316;
+    --panel: #1A1C20;
+    --ink: #EDEBE7;
+    --ink-soft: #A8ACB4;
+    --ink-faint: #6E737C;
+    --rule: #2C2F35;
+    --ai: #F59A47;
+    --ai-wash: #2A1E12;
+    --data: #5FB8C4;
+    --data-wash: #12262A;
+    --warn: #E08472;
+  }
+
+  :root[data-theme="light"] {
+    --ground: #FBFAF8;
+    --panel: #FFFFFF;
+    --ink: #14161A;
+    --ink-soft: #52565E;
+    --ink-faint: #8A8F98;
+    --rule: #E3E1DC;
+    --ai: #E8730C;
+    --ai-wash: #FDF1E4;
+    --data: #1F6F7A;
+    --data-wash: #E6F1F2;
+    --warn: #A3341F;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    line-height: 1.6;
+    margin: 0;
+    padding: 3.5rem 1.5rem 6rem;
+  }
+
+  .wrap {
+    max-width: 46rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 0.75rem;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(1.9rem, 5vw, 2.6rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    text-wrap: balance;
+    margin: 0 0 0.9rem;
+  }
+
+  .lede {
+    font-size: 1.05rem;
+    color: var(--ink-soft);
+    max-width: 34rem;
+    margin: 0;
+  }
+
+  h2 {
+    font-family: var(--display);
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 1.25rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  section { display: flex; flex-direction: column; }
+
+  /* ---- pipeline ---- */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+
+  .step {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    gap: 1rem;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--track);
+    border-radius: 3px;
+    padding: 1.1rem 1.25rem;
+  }
+  .step[data-track="ai"]   { --track: var(--ai); }
+  .step[data-track="data"] { --track: var(--data); }
+  .step[data-track="none"] { --track: var(--rule); }
+
+  .num {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--track);
+    padding-top: 0.15rem;
+  }
+
+  .step-body { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+
+  .actor {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--track);
+  }
+  .step[data-track="none"] .actor { color: var(--ink-faint); }
+
+  .what {
+    font-family: var(--display);
+    font-size: 1.02rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .detail { font-size: 0.9rem; color: var(--ink-soft); margin: 0; }
+
+  .sample {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    line-height: 1.55;
+    background: var(--ground);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 0.6rem 0.75rem;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--ink-soft);
+  }
+
+  .arrow {
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 0.5rem 0 0.5rem 1.2rem;
+  }
+
+  /* ---- legend ---- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+  .key { display: flex; align-items: center; gap: 0.5rem; }
+  .swatch { width: 1.75rem; height: 3px; border-radius: 2px; flex: none; }
+
+  /* ---- claim ---- */
+  .claim {
+    background: var(--data-wash);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1.25rem 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .claim p { margin: 0; }
+  .claim .headline {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--ink);
+  }
+  .claim .sub { font-size: 0.92rem; color: var(--ink-soft); }
+
+  /* ---- guardrails ---- */
+  ul.rails { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.8rem; }
+  ul.rails li {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--warn);
+  }
+  .rail-name { font-family: var(--mono); font-size: 0.82rem; color: var(--ink); }
+  .rail-why { font-size: 0.88rem; color: var(--ink-soft); }
+
+  /* ---- budget table ---- */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 0.6rem 0.9rem 0.6rem 0; border-bottom: 1px solid var(--rule); }
+  th {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 400;
+  }
+  td.num-col { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.svc { font-family: var(--mono); font-size: 0.82rem; }
+
+  footer {
+    font-size: 0.82rem;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--rule);
+    padding-top: 1.25rem;
+  }
+  footer p { margin: 0 0 0.4rem; }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Cloudflare Interview Prep · Project Sketch</p>
+    <h1>The Stat Oracle</h1>
+    <p class="lede">A natural-language question about LeBron's career goes in. Real numbers come out — because the model writes the query, never the answer.</p>
+  </header>
+
+  <section>
+    <h2>Request flow</h2>
+
+    <div class="flow">
+
+      <div class="step" data-track="none">
+        <div class="num">1</div>
+        <div class="step-body">
+          <div class="actor">Browser</div>
+          <p class="what">A question in plain English</p>
+          <div class="sample">"When did he score 40+ against Boston?"</div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-track="none">
+        <div class="num">2</div>
+        <div class="step-body">
+          <div class="actor">Worker · edge</div>
+          <p class="what">Receives the request, holds the schema</p>
+          <p class="detail">The Worker is the only thing with database access. It passes the table schema to the model as context — but never lets the model touch the database directly.</p>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-track="ai">
+        <div class="num">3</div>
+        <div class="step-body">
+          <div class="actor">Workers AI · Llama 3.1 8B</div>
+          <p class="what">Translates the question into SQL</p>
+          <p class="detail">One inference call. The prompt says: here is the schema, here is the question, return only a SELECT statement.</p>
+          <div class="sample">SELECT date, opponent, points
+FROM games
+WHERE opponent = 'BOS' AND points >= 40
+ORDER BY date;</div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-track="ai">
+        <div class="num">4</div>
+        <div class="step-body">
+          <div class="actor">Worker · validation</div>
+          <p class="what">Inspects the SQL before it runs</p>
+          <p class="detail">Rejects anything that isn't a single read. This is the load-bearing step — see the guardrails below.</p>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-track="data">
+        <div class="num">5</div>
+        <div class="step-body">
+          <div class="actor">D1 · SQLite</div>
+          <p class="what">Runs the query, returns real rows</p>
+          <p class="detail">Every figure the user will see originates here. Nothing downstream can alter a number.</p>
+          <div class="sample">2012-03-18 | BOS | 42
+2015-02-05 | BOS | 41</div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-track="ai">
+        <div class="num">6</div>
+        <div class="step-body">
+          <div class="actor">Workers AI · second call</div>
+          <p class="what">Writes prose about the rows it was handed</p>
+          <p class="detail">The model summarizes only what D1 returned. It is not asked to recall anything, so it has nothing to get wrong.</p>
+          <div class="sample">"Twice — 42 points in March 2012
+and 41 in February 2015."</div>
+        </div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="step" data-track="data">
+        <div class="num">7</div>
+        <div class="step-body">
+          <div class="actor">Browser</div>
+          <p class="what">Prose answer, with the table beside it</p>
+          <p class="detail">Show the rows next to the sentence. The user can always check the model's summary against the data it summarized.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Reading the colors</h2>
+    <div class="legend">
+      <div class="key"><span class="swatch" style="background: var(--ai)"></span> Model involved — output must be validated</div>
+      <div class="key"><span class="swatch" style="background: var(--data)"></span> Ground truth — numbers come from here</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="claim">
+      <p class="headline">Why this architecture is the point</p>
+      <p class="sub">A chatbot asked "how many points does LeBron have?" answers from training data, and can be confidently wrong. Here the model has two jobs — write a query, then describe rows — and neither one lets it invent a statistic. Grounding generation in a real datastore is the pattern every company wants right now, and this is a small, complete demonstration of it.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Guardrails on step 4</h2>
+    <p class="lede" style="font-size: 0.92rem; margin-bottom: 1.25rem;">An LLM writing SQL against your database is a genuine risk. Building the containment is the part worth talking about in an interview.</p>
+    <ul class="rails">
+      <li>
+        <span class="rail-name">SELECT-only allowlist</span>
+        <span class="rail-why">Reject any statement that isn't a single SELECT — no DROP, DELETE, UPDATE, ATTACH, or PRAGMA.</span>
+      </li>
+      <li>
+        <span class="rail-name">One statement per request</span>
+        <span class="rail-why">Refuse anything containing a semicolon mid-query, which blocks stacked-statement injection.</span>
+      </li>
+      <li>
+        <span class="rail-name">Server-injected LIMIT</span>
+        <span class="rail-why">Append your own row cap so a runaway query can't exhaust the response or the CPU budget.</span>
+      </li>
+      <li>
+        <span class="rail-name">Timeout and fallback</span>
+        <span class="rail-why">If the SQL is invalid or returns nothing, say so plainly. Never let the model free-form an answer when the query fails — that's exactly where a hallucinated stat would slip in.</span>
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>What it costs to run</h2>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Free allowance</th>
+            <th>This app uses</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="svc">Workers</td>
+            <td class="num-col">100,000 req/day</td>
+            <td>1 request per question</td>
+          </tr>
+          <tr>
+            <td class="svc">Workers AI</td>
+            <td class="num-col">10,000 Neurons/day</td>
+            <td>2 inference calls per question</td>
+          </tr>
+          <tr>
+            <td class="svc">D1</td>
+            <td class="num-col">5M rows read/day</td>
+            <td>A career dataset is ~1,500 rows</td>
+          </tr>
+          <tr>
+            <td class="svc">AI Gateway</td>
+            <td class="num-col">Free</td>
+            <td>Optional — caches repeat questions to zero Neurons</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>Workers AI and Durable Objects free-tier limits verified against Cloudflare docs, 18 July 2026. Neuron cost per inference varies by model — check the per-model pricing table before assuming a question count.</p>
+    <p>Open question: the career dataset still has to be sourced from Basketball-Reference or balldontlie. Correctness of this app depends entirely on that extraction.</p>
+  </footer>
+
+</div>

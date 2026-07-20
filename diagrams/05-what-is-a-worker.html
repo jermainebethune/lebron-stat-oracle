@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>What is a Cloudflare Worker?</title>
+<style>
+  :root {
+    --cream:#FBFAEF; --ink:#1A1D23; --soft:#5C6470; --faint:#949CA7;
+    --old:#8A6A3B;   --old-tint:#F5EEE1;  --old-line:#DCC9A6;
+    --new:#1E5FD0;   --new-tint:#E9F0FD;  --new-line:#A9C4F2;
+    --green:#17864F; --green-tint:#E8F5EE; --green-line:#A8D8BE;
+    --purple:#7A3FD4;--purple-tint:#F0EAFC;--purple-line:#C6ACF0;
+    --orange:#D9700A;--orange-tint:#FDF0E2;--orange-line:#EDBE8A;
+    --red:#C42B21;   --red-tint:#FCEAE8;
+    --sans:"Avenir Next",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:20px 24px;width:1500px;background:var(--cream);color:var(--ink);
+       font-family:var(--sans);zoom:0.99}
+
+  .head{display:flex;align-items:center;gap:11px;margin-bottom:5px}
+  .tick{width:5px;height:32px;background:var(--new);border-radius:3px}
+  h1{font-size:27px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .sub{font-size:12.5px;color:var(--soft);margin:0 0 15px 16px}
+  .sub b{color:var(--ink)}
+
+  .band{margin-bottom:13px}
+  .bandlbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;
+           color:var(--faint);margin-bottom:6px}
+
+  .two{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:stretch}
+  .three{display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:12px;align-items:start}
+  .four{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+
+  .panel{border:1.5px solid var(--pl,var(--new-line));background:var(--pt,var(--new-tint));
+         border-radius:12px;padding:13px 14px}
+  .panel h3{font-size:14px;font-weight:800;margin:0 0 3px;letter-spacing:-.01em}
+  .panel .lede{font-size:11px;color:var(--soft);margin:0 0 9px}
+  .p-old{--pl:var(--old-line);--pt:var(--old-tint)}
+  .p-new{--pl:var(--new-line);--pt:var(--new-tint)}
+  .p-green{--pl:var(--green-line);--pt:var(--green-tint)}
+  .p-purple{--pl:var(--purple-line);--pt:var(--purple-tint)}
+  .p-orange{--pl:var(--orange-line);--pt:var(--orange-tint)}
+
+  .card{background:#fff;border:1.5px solid var(--cl,var(--pl,var(--new-line)));border-radius:8px;
+        padding:9px 11px;margin-bottom:7px}
+  .card:last-child{margin-bottom:0}
+  .card .t{font-size:11.5px;font-weight:700}
+  .card .d{font-size:10.5px;color:var(--soft);margin-top:1px}
+  .ico{font-size:19px;line-height:1.1}
+
+  .vs{display:flex;align-items:center;font-size:15px;font-weight:800;color:var(--faint)}
+
+  table{width:100%;border-collapse:collapse;font-size:10.5px;background:#fff;
+        border:1.5px solid var(--green-line);border-radius:8px;overflow:hidden}
+  th,td{padding:5px 9px;text-align:left;border-bottom:1px solid #EDF1F5}
+  tr:last-child td{border-bottom:0}
+  th{font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;
+     color:var(--faint);font-weight:500;background:#FAFBFC}
+  td.r{text-align:right;font-family:var(--mono);font-size:10px}
+  td.win{color:var(--green);font-weight:700}
+
+  pre{margin:0;font-family:var(--mono);font-size:10.5px;line-height:1.6;background:#fff;
+      border:1.5px solid var(--new-line);border-radius:8px;padding:10px 12px;overflow:hidden;
+      white-space:pre-wrap}
+  .cmt{color:var(--faint)}
+  .kw{color:var(--purple);font-weight:700}
+  .bind{color:var(--green);font-weight:700}
+
+  .why{background:#fff;border-left:3px solid var(--orange);border-radius:0 6px 6px 0;
+       padding:7px 9px;margin-bottom:6px}
+  .why:last-child{margin-bottom:0}
+  .why .q{font-size:10.5px;font-weight:800}
+  .why .a{font-size:10px;color:var(--soft);margin-top:1px}
+
+  .punch{margin-top:13px;background:var(--purple-tint);border:1.5px solid var(--purple-line);
+         border-radius:10px;padding:11px 14px}
+  .punch .t{font-size:13px;font-weight:800;letter-spacing:-.01em}
+  .punch .d{font-size:11px;color:var(--soft);margin-top:3px}
+  .punch b{color:var(--ink)}
+
+  .pagerow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:6px;align-items:stretch}
+  .step{display:flex;gap:7px;align-items:flex-start}
+  .sn{width:19px;height:19px;border-radius:50%;background:var(--new);color:#fff;flex:none;
+      display:grid;place-items:center;font-size:10.5px;font-weight:800;margin-top:9px}
+  .sbox{background:#fff;border:1.5px solid var(--new-line);border-radius:8px;padding:9px 11px;flex:1}
+  .st{font-size:11.5px;font-weight:800}
+  .sd{font-size:10px;color:var(--soft);margin-top:2px;line-height:1.4}
+  .snote{font-size:9.5px;color:var(--soft);margin-top:5px;padding-top:5px;border-top:1px solid #EDF1F5}
+  .m{font-family:var(--mono);font-size:9.5px;color:var(--ink)}
+  .sarrow{display:flex;align-items:center;color:var(--faint);font-size:14px}
+  .pagewhy{margin-top:8px;display:flex;flex-wrap:wrap;gap:3px 14px;font-size:10px;color:var(--soft);
+           background:#fff;border:1.5px dashed var(--new-line);border-radius:8px;padding:7px 11px}
+  .pagewhy b{color:var(--ink)}
+
+  .foot{margin-top:11px;text-align:center;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+</style>
+</head>
+<body>
+
+  <div class="head">
+    <span class="tick"></span>
+    <h1>What <i>is</i> a Cloudflare Worker?</h1>
+  </div>
+  <p class="sub">From the fundamental shift, to why it's cheap, to why the limits are what they are — and where the model stops working. <b>Every example is from The Chalk Toss.</b></p>
+
+  <!-- 1. THE SHIFT -->
+  <div class="band">
+    <div class="bandlbl">1 · The shift — you stop renting a computer</div>
+    <div class="two">
+      <div class="panel p-old">
+        <h3>🖥️ The old way: a server</h3>
+        <p class="lede">You rent a computer. It sits in ONE city.</p>
+        <div class="card" style="--cl:var(--old-line)"><div class="t">Runs 24/7</div><div class="d">Whether anyone visits or not — and you pay either way</div></div>
+        <div class="card" style="--cl:var(--old-line)"><div class="t">Lives in one place</div><div class="d">Someone in Tokyo waits for a round trip to Virginia</div></div>
+        <div class="card" style="--cl:var(--old-line)"><div class="t">Its problems are your problems</div><div class="d">OS patches, memory, what happens when 10,000 people arrive at once</div></div>
+      </div>
+
+      <div class="vs">→</div>
+
+      <div class="panel p-new">
+        <h3>⚡ The Worker: a function</h3>
+        <p class="lede">You hand Cloudflare a function. They run it in ~300 cities.</p>
+        <div class="card"><div class="t">Runs only when asked</div><div class="d">Between requests it exists nowhere. Nothing to pay for, nothing to patch</div></div>
+        <div class="card"><div class="t">Runs where the request lands</div><div class="d">A request from Tokyo is handled in Tokyo</div></div>
+        <div class="card"><div class="t">Scaling is not your problem</div><div class="d">10,000 at once is 10,000 copies. You did nothing</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. WHY / ANATOMY / LIMITS -->
+  <div class="band">
+    <div class="bandlbl">2 · The question that unlocks it — how can they afford to run your code in 300 cities?</div>
+    <div class="three">
+
+      <div class="panel p-green">
+        <h3>🧩 Not a VM. A sandbox.</h3>
+        <p class="lede">A Worker is a <b>V8 isolate</b> — the same trick that keeps browser tabs apart. 50 tabs isn't 50 copies of Chrome; it's one process with 50 sandboxes.</p>
+        <table>
+          <thead><tr><th>&nbsp;</th><th>Container</th><th>V8 isolate</th></tr></thead>
+          <tbody>
+            <tr><td>Startup</td><td class="r">seconds</td><td class="r win">~5 ms</td></tr>
+            <tr><td>Memory each</td><td class="r">100s of MB</td><td class="r win">~3 MB</td></tr>
+            <tr><td>Per machine</td><td class="r">dozens</td><td class="r win">thousands</td></tr>
+          </tbody>
+        </table>
+        <p class="lede" style="margin:8px 0 0">One machine runs thousands of customers at once. Yours starts on a request and is gone after. <b>That is why there is no cold-start problem and why idle costs nothing.</b></p>
+      </div>
+
+      <div class="panel p-new">
+        <h3>🔬 Anatomy — this is the whole app</h3>
+        <p class="lede">Ordinary JavaScript. No ports, no server config, no framework.</p>
+<pre><span class="kw">export default</span> {
+  <span class="kw">async</span> fetch(request, env) {
+
+    <span class="cmt">// who is asking?</span>
+    <span class="kw">await</span> authorize(request, env)
+
+    <span class="cmt">// ask the model for SQL</span>
+    <span class="kw">await</span> env.<span class="bind">AI</span>.run(MODEL, {...})
+
+    <span class="cmt">// run it against the database</span>
+    <span class="kw">await</span> env.<span class="bind">DB</span>.prepare(sql).all()
+
+    <span class="kw">return</span> <span class="kw">new</span> Response(html)
+  }
+}</pre>
+        <p class="lede" style="margin:8px 0 0"><b>request</b> is what the visitor sent. <b>env</b> holds your bindings. Return a Response and you are done.</p>
+      </div>
+
+      <div class="panel p-orange">
+        <h3>🔌 Bindings — the good idea</h3>
+        <p class="lede">Normally a database means a URL, a password, a driver, a connection pool. From 300 cities that is a nightmare.</p>
+        <div class="card" style="--cl:var(--orange-line)"><div class="t">You declare it in config</div><div class="d"><span style="font-family:var(--mono);font-size:9.5px">"d1_databases": [{ "binding": "DB" }]</span></div></div>
+        <div class="card" style="--cl:var(--orange-line)"><div class="t">Your code gets <span style="font-family:var(--mono)">env.DB</span></div><div class="d">No URL. No password. No pool. The platform hands your sandbox a live handle</div></div>
+        <div class="card" style="--cl:var(--orange-line)"><div class="t">Same for everything</div><div class="d"><span style="font-family:var(--mono);font-size:9.5px">env.AI</span> · secrets injected at runtime · never in your code</div></div>
+        <p class="lede" style="margin:8px 0 0"><b>This is why the repo has no credentials in it.</b> Not discipline — architecture.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2b. HOW THE PAGE IS PRODUCED -->
+  <div class="band">
+    <div class="bandlbl">3 · So how does it produce a web page? — there is no HTML file anywhere</div>
+    <div class="pagerow">
+
+      <div class="step">
+        <span class="sn">1</span>
+        <div class="sbox">
+          <div class="st">You open the URL</div>
+          <div class="sd">Worker runs, matches <span class="m">pathname === '/'</span>, returns <b>~18 KB of text</b> with the header <span class="m">content-type: text/html</span>. That header is the only thing that makes it a page — switch it to text/plain and the browser shows raw angle brackets.</div>
+          <div class="snote">The HTML is a <b>template string in ui.js</b>. No file on a disk.</div>
+        </div>
+      </div>
+
+      <div class="sarrow">→</div>
+
+      <div class="step">
+        <span class="sn">2</span>
+        <div class="sbox">
+          <div class="st">Browser finds an image</div>
+          <div class="sd"><span class="m">&lt;img src="/img/lebron-heat-ball.jpg"&gt;</span> is a <b>second, separate request</b>.</div>
+          <div class="snote">It <b>never reaches your Worker</b> — static assets serve it from the edge. That is why photos cost no Worker CPU.</div>
+        </div>
+      </div>
+
+      <div class="sarrow">→</div>
+
+      <div class="step">
+        <span class="sn">3</span>
+        <div class="sbox">
+          <div class="st">Browser runs the &lt;script&gt;</div>
+          <div class="sd"><b>This is the fork most people miss.</b> That JavaScript does not run in the Worker — it runs on your phone.</div>
+          <div class="snote"><b>Worker code</b> reaches D1, AI, secrets. <b>Browser code</b> reaches the page. They only talk over HTTP.</div>
+        </div>
+      </div>
+
+      <div class="sarrow">→</div>
+
+      <div class="step">
+        <span class="sn">4</span>
+        <div class="sbox">
+          <div class="st">You click Ask</div>
+          <div class="sd">Browser calls <span class="m">fetch('/api/ask')</span>. <b>The same Worker runs again</b> — different branch — and returns <b>JSON, not HTML</b>.</div>
+          <div class="snote">The browser script writes that JSON into the page. One Worker, two kinds of request.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pagewhy">
+      <span><b>Why build it this way?</b></span>
+      <span>· <b>It can't go stale</b> — "1,912 games" and the provenance banner are read from D1 as the page is generated</span>
+      <span>· <b>One deploy</b> — no separate frontend host, no CORS, no build step</span>
+      <span>· <b>Generated in your city</b>, not fetched from an origin somewhere else</span>
+    </div>
+  </div>
+
+  <!-- 3. LIMITS -->
+  <div class="band">
+    <div class="bandlbl">4 · Every limit falls out of that one choice — they stop feeling arbitrary</div>
+    <div class="four">
+      <div class="why"><div class="q">⏱️ 10 ms CPU (free plan)</div><div class="a">Thousands of isolates share a machine; one hogging the CPU would starve the rest. <b>Waiting doesn't count</b> — a Chalk Toss question takes 1.2s but only a few ms of CPU. The rest is waiting on AI and D1.</div></div>
+      <div class="why"><div class="q">📁 No filesystem</div><div class="a">There is no machine that is "yours" to write to. Anything you save goes somewhere built for it — which is why the data lives in D1.</div></div>
+      <div class="why"><div class="q">🧠 No memory between requests</div><div class="a">Your isolate may be discarded, or the next request may land in another city. <b>You cannot keep a counter in a variable.</b> This is the one that trips everybody up.</div></div>
+      <div class="why"><div class="q">📦 3 MB of code</div><div class="a">It has to load in milliseconds. Photos are served as static assets, not bundled into the script.</div></div>
+    </div>
+  </div>
+
+  <!-- 4. WHERE IT BREAKS -->
+  <div class="punch">
+    <div class="t">🚧 Where the model stops working — and what comes next</div>
+    <div class="d">
+      So far: <b>a function, runs anywhere, remembers nothing.</b> Perfect for The Chalk Toss, where every question is independent.
+      It fails the moment two visitors must see the same live thing — a chat room, a live vote, a shared counter. There is no "the" Worker to hold that;
+      there are hundreds of copies with no shared memory. <b>Durable Objects</b> are the answer: a named object that exists in exactly ONE place globally,
+      single-threaded, with its own storage. Requests for <span style="font-family:var(--mono);font-size:10px">room-42</span> from Tokyo and London reach the same object.
+    </div>
+  </div>
+
+  <p class="foot">A Worker is a function Cloudflare runs everywhere, instead of a server you run somewhere · examples from chalk.jermainebethune.com</p>
+
+</body>
+</html>

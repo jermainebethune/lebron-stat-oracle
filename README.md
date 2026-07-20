@@ -86,6 +86,7 @@ Secrets live on the Worker, data lives in D1, so neither is on any laptop. See
 | `extract.mjs` | Regenerates `seed.sql` from the balldontlie API |
 | `deploy.sh` | Deploys, then emails a summary — only if the deploy succeeded |
 | `test/guard.test.js` | 15 unit tests against the guard |
+| `diagrams/` | Source HTML for every diagram — self-contained, no build step |
 | `eval/cases.js` | The answer key — 20 questions with queries we trust |
 | `eval/run.mjs` | Runs the answer key against the live app |
 
